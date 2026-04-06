@@ -172,7 +172,7 @@ Mostly product/process artifacts, but backend supports:
 - CORS policy name: `FrontendCorsPolicy`
 - Config key: `Cors:AllowedOrigins`
 - Development default includes `http://localhost:5173`
-- Non-development environments require explicit origins
+- Production without configured origins: API still runs (e.g. `/health`); set `Cors__AllowedOrigins__*` before the Vercel frontend can call the API cross-origin
 
 ### Azure App Service Quick Setup
 

@@ -58,12 +58,17 @@ CodeCoverage/
 TestResult.xml
 nunit-*.xml
 
-# Lighthouse reports
-lighthouse_csv_v7/
+# SQL Server bcp error dumps (local import troubleshooting)
+# e.g. bcp_safehouses_errors.txt, partners_bcp_errors.txt, supporters_bcp_errors.txt
+*bcp*errors*.txt
+
 # ENV stuff
 .env
 .env.*
 !.env.example
+
+# Local API overrides (may contain connection strings)
+**/appsettings.*.local.json
 
 # IDE/editor
 .vs/
