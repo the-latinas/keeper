@@ -36,7 +36,11 @@ builder.Services.AddCors(options =>
             return;
         }
 
-        throw new InvalidOperationException("No CORS origins configured for non-development environment.");
+        // Production with no origins: allow app to run (e.g. /health, curl). Add
+        // Cors:AllowedOrigins in Azure App Settings before browser calls from Vercel.
+        policy.SetIsOriginAllowed(_ => false)
+            .AllowAnyHeader()
+            .AllowAnyMethod();
     });
 });
 
