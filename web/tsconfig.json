@@ -13,6 +13,7 @@
 		"skipLibCheck": true,
 		/* Bundler mode */
 		"moduleResolution": "bundler",
+		"jsx": "react-jsx",
 		"allowImportingTsExtensions": true,
 		"verbatimModuleSyntax": true,
 		"moduleDetection": "force",
@@ -30,6 +31,5 @@
 	},
 	"include": [
 		"src"
-	],
-	"jsx": "react-jsx"
+	]
 }
