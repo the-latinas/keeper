@@ -67,6 +67,7 @@ jobs:
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
-          app-name: keeper-intex
-          slot-name: Production
-          package: ${{ env.PUBLISH_DIR }}
+          app-name: 'keeper-intex'
+          slot-name: 'Production'
+          package: .
+          
