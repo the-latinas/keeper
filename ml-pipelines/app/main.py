@@ -98,7 +98,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Donor ML API",
+    title="Keeper ML API",
     description="Retention, growth, social engagement, girls progress, girls struggling, and girls education trajectory pipelines.",
     version="1.0.0",
     lifespan=lifespan,
@@ -116,7 +116,7 @@ app.include_router(girls_trajectory_router)
 def root():
     """Browsing http://localhost:8000/ hits this; API lives under /health, /docs, and router prefixes."""
     return {
-        "service": "Donor ML API",
+        "service": "Keeper ML API",
         "docs": "/docs",
         "health": "/health",
         "retention": {"features": "/retention/features", "predict": "/retention/predict"},
