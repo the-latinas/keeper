@@ -28,7 +28,8 @@ type AuthUserResponse = {
 };
 
 const apiBaseUrl =
-  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim() || "http://localhost:5216";
+  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim() ||
+  "http://localhost:5216";
 
 export const Route = createFileRoute("/login")({
   component: Login,
@@ -38,7 +39,9 @@ function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [challenge, setChallenge] = useState<AuthChallengeResponse | null>(null);
+  const [challenge, setChallenge] = useState<AuthChallengeResponse | null>(
+    null,
+  );
   const loginMutation = useMutation({
     mutationFn: ({ email, password }: { email: string; password: string }) =>
       submitLogin({ email, password }),
@@ -76,14 +79,19 @@ function Login() {
     <main className="mx-auto flex w-full max-w-4xl flex-1 items-center justify-center px-6 py-16">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>{challenge ? "Check your email" : "Login to your account"}</CardTitle>
+          <CardTitle>
+            {challenge ? "Check your email" : "Login to your account"}
+          </CardTitle>
           <CardDescription>
             {challenge
               ? "Enter the code we emailed you to finish signing in."
               : "Enter your email and password to continue."}
           </CardDescription>
           <CardAction>
-            <Link to="/signup" className={buttonVariants({ variant: "link", className: "px-0" })}>
+            <Link
+              to="/signup"
+              className={buttonVariants({ variant: "link", className: "px-0" })}
+            >
               Sign up
             </Link>
           </CardAction>
@@ -91,13 +99,12 @@ function Login() {
         <CardContent>
           {challenge ? (
             <CodeChallengeForm
-              email={challenge.email}
-              title="Enter your login code"
-              description="Your password was correct."
               verifyLabel="Finish login"
               isVerifying={verifyMutation.isPending}
               isResending={resendMutation.isPending}
-              errorMessage={verifyMutation.error?.message ?? resendMutation.error?.message}
+              errorMessage={
+                verifyMutation.error?.message ?? resendMutation.error?.message
+              }
               onVerify={async (code) => {
                 await verifyMutation.mutateAsync(code);
               }}
@@ -132,9 +139,15 @@ function Login() {
                 />
               </div>
               {loginMutation.error ? (
-                <p className="text-sm text-destructive">{loginMutation.error.message}</p>
+                <p className="text-sm text-destructive">
+                  {loginMutation.error.message}
+                </p>
               ) : null}
-              <Button type="submit" className="w-full" disabled={loginMutation.isPending}>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={loginMutation.isPending}
+              >
                 {loginMutation.isPending ? "Checking password..." : "Continue"}
               </Button>
             </form>
@@ -199,10 +212,15 @@ async function resendLoginCode(): Promise<void> {
   }
 }
 
-async function readError(response: Response, fallbackMessage: string): Promise<string> {
-  const body = (await response.json().catch(() => null)) as
-    | { error?: string; title?: string; errors?: Record<string, string[]> }
-    | null;
+async function readError(
+  response: Response,
+  fallbackMessage: string,
+): Promise<string> {
+  const body = (await response.json().catch(() => null)) as {
+    error?: string;
+    title?: string;
+    errors?: Record<string, string[]>;
+  } | null;
 
   if (body?.error) {
     return body.error;
