@@ -36,9 +36,17 @@ public class AuthController : ControllerBase
             return ValidationProblem(ModelState);
         }
 
+        var email = request.Email.Trim();
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            ModelState.AddModelError(nameof(request.Email), "Email is required.");
+            return ValidationProblem(ModelState);
+        }
+
         var user = new ApplicationUser
         {
             UserName = username,
+            Email = email,
         };
 
         var createResult = await _userManager.CreateAsync(user, request.Password);
@@ -119,6 +127,7 @@ public class AuthController : ControllerBase
         var roles = await _userManager.GetRolesAsync(user);
         return new AuthUserResponse
         {
+            Email = user.Email ?? string.Empty,
             Username = user.UserName ?? string.Empty,
             Roles = roles.ToArray()
         };
