@@ -49,7 +49,8 @@ function Login() {
         return;
       }
 
-      await navigate({ to: "/dashboard" });
+      const user = await fetchMe();
+      await navigate({ to: roleBasedRedirect(user.roles) });
     },
   });
   const verifyMutation = useMutation({
@@ -60,7 +61,7 @@ function Login() {
         email: user.email,
       });
       await queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
-      await navigate({ to: "/dashboard" });
+      await navigate({ to: roleBasedRedirect(user.roles) });
     },
   });
   const resendMutation = useMutation({
@@ -189,13 +190,12 @@ function Login() {
                     </p>
                     {showVerifyLink ? (
                       <p className="font-body text-sm text-muted-foreground">
-                        <Link
-                          to="/signup/verify"
-                          search={{ email: email.trim() }}
+                        <a
+                          href={`/signup/verify?email=${encodeURIComponent(email.trim())}`}
                           className="text-primary underline underline-offset-4"
                         >
                           Verify your email
-                        </Link>
+                        </a>
                         .
                       </p>
                     ) : null}
@@ -227,6 +227,20 @@ function Login() {
       </div>
     </div>
   );
+}
+
+function roleBasedRedirect(roles: string[]): "/admin" | "/dashboard" {
+  return roles.includes("Admin") ? "/admin" : "/dashboard";
+}
+
+async function fetchMe(): Promise<AuthUserResponse> {
+  const response = await fetch(`${apiBaseUrl}/api/auth/me`, {
+    credentials: "include",
+  });
+  if (!response.ok) {
+    throw new Error("Unable to load user info.");
+  }
+  return response.json() as Promise<AuthUserResponse>;
 }
 
 async function submitLogin(input: {
