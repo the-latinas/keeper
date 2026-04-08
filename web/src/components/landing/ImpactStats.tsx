@@ -15,9 +15,9 @@ export type ImpactStatsData = {
 };
 
 const defaultStats: ImpactStatsData = {
-  girlsServed: "250+",
-  safehouses: "5",
-  reintegration: "87%",
+  girlsServed: "60",
+  safehouses: "9",
+  reintegration: "32%",
 };
 
 function ImpactStatCard({
@@ -47,8 +47,12 @@ function ImpactStatCard({
       <div className="font-heading text-4xl md:text-5xl font-bold text-foreground mb-2 min-h-[3rem] flex items-center justify-center">
         {displayValue}
       </div>
-      <div className="font-body text-base font-semibold text-foreground mb-2">{label}</div>
-      <p className="font-body text-sm text-muted-foreground leading-relaxed">{description}</p>
+      <div className="font-body text-base font-semibold text-foreground mb-2">
+        {label}
+      </div>
+      <p className="font-body text-sm text-muted-foreground leading-relaxed">
+        {description}
+      </p>
     </motion.div>
   );
 }
@@ -65,10 +69,14 @@ export default function ImpactStats({
   const reintegrationMetric = useReintegrationRateMetric();
 
   const resolvedStats: ImpactStatsData = {
-    girlsServed: useDynamicData ? girlsServedMetric.data?.displayValue ?? stats.girlsServed : stats.girlsServed,
-    safehouses: useDynamicData ? safehousesMetric.data?.displayValue ?? stats.safehouses : stats.safehouses,
+    girlsServed: useDynamicData
+      ? (girlsServedMetric.data?.displayValue ?? stats.girlsServed)
+      : stats.girlsServed,
+    safehouses: useDynamicData
+      ? (safehousesMetric.data?.displayValue ?? stats.safehouses)
+      : stats.safehouses,
     reintegration: useDynamicData
-      ? reintegrationMetric.data?.displayValue ?? stats.reintegration
+      ? (reintegrationMetric.data?.displayValue ?? stats.reintegration)
       : stats.reintegration,
   };
 
