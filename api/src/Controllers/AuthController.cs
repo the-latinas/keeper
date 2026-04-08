@@ -1,3 +1,4 @@
+using api.Data;
 using api.DTOs;
 using api.Models;
 using api.Security;
@@ -20,6 +21,7 @@ public class AuthController : ControllerBase
     private readonly PendingSignupChallengeStore _pendingSignupChallengeStore;
     private readonly PendingLoginChallengeStore _pendingLoginChallengeStore;
     private readonly IWebHostEnvironment _environment;
+    private readonly AppDbContext _db;
 
     public AuthController(
         UserManager<ApplicationUser> userManager,
@@ -27,7 +29,8 @@ public class AuthController : ControllerBase
         IAuthCodeSender authCodeSender,
         PendingSignupChallengeStore pendingSignupChallengeStore,
         PendingLoginChallengeStore pendingLoginChallengeStore,
-        IWebHostEnvironment environment)
+        IWebHostEnvironment environment,
+        AppDbContext db)
     {
         _userManager = userManager;
         _signInManager = signInManager;
@@ -35,6 +38,7 @@ public class AuthController : ControllerBase
         _pendingSignupChallengeStore = pendingSignupChallengeStore;
         _pendingLoginChallengeStore = pendingLoginChallengeStore;
         _environment = environment;
+        _db = db;
     }
 
     [AllowAnonymous]
@@ -88,6 +92,21 @@ public class AuthController : ControllerBase
                 new { error = "Unable to send the verification email. Please try again later." });
         }
 
+        var nextSupporterId = await _db.Supporters.AnyAsync(cancellationToken)
+            ? await _db.Supporters.MaxAsync(s => s.SupporterId, cancellationToken) + 1
+            : 1;
+
+        _db.Supporters.Add(new Supporter
+        {
+            SupporterId = nextSupporterId,
+            Email = email,
+            SupporterType = "MonetaryDonor",
+            Status = "Active",
+            CreatedAt = DateTime.UtcNow,
+            AcquisitionChannel = "Website",
+        });
+        await _db.SaveChangesAsync(cancellationToken);
+
         _pendingSignupChallengeStore.Write(Response, user.Id, email, _environment.IsDevelopment());
 
         return StatusCode(StatusCodes.Status201Created, new AuthChallengeResponse
@@ -110,8 +129,7 @@ public class AuthController : ControllerBase
             return ValidationProblem(ModelState);
         }
 
-        var normalizedEmail = _userManager.NormalizeEmail(email);
-        var user = await _userManager.Users.SingleOrDefaultAsync(candidate => candidate.NormalizedEmail == normalizedEmail);
+        var user = await _userManager.FindByEmailAsync(email);
 
         if (user is null)
         {
@@ -368,13 +386,12 @@ public class AuthController : ControllerBase
 
     private async Task<ApplicationUser?> FindPendingSignupUserByEmailAsync(string email)
     {
-        var normalizedEmail = _userManager.NormalizeEmail(email);
-        if (string.IsNullOrWhiteSpace(normalizedEmail))
+        if (string.IsNullOrWhiteSpace(_userManager.NormalizeEmail(email)))
         {
             return null;
         }
 
-        var user = await _userManager.Users.SingleOrDefaultAsync(candidate => candidate.NormalizedEmail == normalizedEmail);
+        var user = await _userManager.FindByEmailAsync(email);
         if (user is null || user.EmailConfirmed)
         {
             return null;
