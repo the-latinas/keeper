@@ -42,7 +42,9 @@ function DonorDashboard() {
 
   const metrics: DonorMetricsData = {
     totalDonated: donations.reduce((sum, d) => sum + (d.amount || 0), 0),
-    girlsSupported: Math.floor(donations.reduce((sum, d) => sum + (d.amount || 0), 0) / 150),
+    girlsSupported: Math.floor(
+      donations.reduce((sum, d) => sum + (d.amount || 0), 0) / 150
+    ),
   };
 
   if (isLoading) {
@@ -63,7 +65,8 @@ function DonorDashboard() {
               The Impact You Make
             </h1>
             <p className="font-body text-base text-muted-foreground mt-2">
-              See how your generosity is making a difference in the lives of survivors.
+              See how your generosity is making a difference in the lives of
+              survivors.
             </p>
           </div>
           <Link to="/" hash="donate">
@@ -78,33 +81,50 @@ function DonorDashboard() {
 
         <div className="grid lg:grid-cols-2 gap-6 mt-8">
           <div className="bg-card rounded-2xl border border-border p-8 flex flex-col justify-center shadow-sm">
-            <h3 className="font-heading text-xl font-bold text-foreground mb-6 text-center">Where Your Money Goes</h3>
+            <h3 className="font-heading text-xl font-bold text-foreground mb-6 text-center">
+              Where Your Money Goes
+            </h3>
             <div className="h-6 w-full rounded-full overflow-hidden flex mb-8 shadow-inner max-w-lg mx-auto">
-              <motion.div 
-                initial={{ width: 0 }} whileInView={{ width: "85%" }} transition={{ duration: 1, delay: 0.2, ease: "easeOut" }}
-                className="h-full bg-primary" title="85% Programs & Services" 
+              <motion.div
+                initial={{ width: 0 }}
+                whileInView={{ width: "85%" }}
+                transition={{ duration: 1, delay: 0.2, ease: "easeOut" }}
+                className="h-full bg-primary"
+                title="85% Programs & Services"
               />
-              <motion.div 
-                initial={{ width: 0 }} whileInView={{ width: "10%" }} transition={{ duration: 1, delay: 0.4, ease: "easeOut" }}
-                className="h-full bg-yellow-500" title="10% Operations" 
+              <motion.div
+                initial={{ width: 0 }}
+                whileInView={{ width: "10%" }}
+                transition={{ duration: 1, delay: 0.4, ease: "easeOut" }}
+                className="h-full bg-yellow-500"
+                title="10% Operations"
               />
-              <motion.div 
-                initial={{ width: 0 }} whileInView={{ width: "5%" }} transition={{ duration: 1, delay: 0.6, ease: "easeOut" }}
-                className="h-full bg-muted-foreground/30" title="5% Administration" 
+              <motion.div
+                initial={{ width: 0 }}
+                whileInView={{ width: "5%" }}
+                transition={{ duration: 1, delay: 0.6, ease: "easeOut" }}
+                className="h-full bg-muted-foreground/30"
+                title="5% Administration"
               />
             </div>
             <div className="flex flex-wrap justify-center gap-x-6 gap-y-3">
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-primary" />
-                <span className="font-body text-sm font-medium text-foreground">85% Programs & Services</span>
+                <span className="font-body text-sm font-medium text-foreground">
+                  85% Programs & Services
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                <span className="font-body text-sm font-medium text-foreground">10% Operations</span>
+                <span className="font-body text-sm font-medium text-foreground">
+                  10% Operations
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-muted-foreground/30" />
-                <span className="font-body text-sm font-medium text-foreground">5% Admin</span>
+                <span className="font-body text-sm font-medium text-foreground">
+                  5% Admin
+                </span>
               </div>
             </div>
           </div>
@@ -130,9 +150,12 @@ function DonorDashboard() {
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="bg-[#FDFBF7] rounded-2xl border border-border shadow-lg p-8 max-w-md w-full mx-4">
-            <h2 className="font-heading text-xl font-bold text-foreground mb-2">Delete Account</h2>
+            <h2 className="font-heading text-xl font-bold text-foreground mb-2">
+              Delete Account
+            </h2>
             <p className="font-body text-base text-muted-foreground mb-6">
-              Are you sure you want to delete your account? This action cannot be undone.
+              Are you sure you want to delete your account? This action cannot
+              be undone.
             </p>
             <div className="flex gap-3 justify-end">
               <Button
