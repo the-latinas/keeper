@@ -86,6 +86,14 @@ export default function Navbar() {
             >
               Contact
             </Link>
+            {user ? (
+              <Link
+                to="/donor"
+                className="text-sm font-body font-medium text-muted-foreground hover:text-yellow-600 transition-colors [&.active]:text-yellow-600 [&.active]:font-semibold"
+              >
+                Donor
+              </Link>
+            ) : null}
           </div>
 
           <div className="flex items-center gap-3">
