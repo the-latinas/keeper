@@ -12,6 +12,7 @@ PIPELINES_DIR = BASE_DIR / "pipelines"
 DEFAULT_RETENTION_ARTIFACT = PIPELINES_DIR / "retention_pipeline_v3.sav"
 DEFAULT_GROWTH_ARTIFACT = PIPELINES_DIR / "growth_pipeline_v4.sav"
 DEFAULT_SOCIAL_ENGAGEMENT_ARTIFACT = PIPELINES_DIR / "social_engagement_pipeline_v2.sav"
+DEFAULT_SOCIAL_CAUSAL_ARTIFACT = PIPELINES_DIR / "social_causal_boost_pipeline_v1.sav"
 DEFAULT_GIRLS_PROGRESS_ARTIFACT = PIPELINES_DIR / "girls_progress_pipeline_v2.sav"
 DEFAULT_GIRLS_EDUCATION_TRAJECTORY_ARTIFACT = (
     PIPELINES_DIR / "girls_education_trajectory_pipeline_v1.sav"
@@ -40,6 +41,14 @@ def social_engagement_pipeline_path() -> Path:
     if env:
         return Path(env).expanduser().resolve()
     return DEFAULT_SOCIAL_ENGAGEMENT_ARTIFACT.resolve()
+
+
+def social_causal_pipeline_path() -> Path:
+    """Absolute path to the T-Learner causal boost artifact; override with SOCIAL_CAUSAL_PIPELINE_PATH."""
+    env = os.environ.get("SOCIAL_CAUSAL_PIPELINE_PATH")
+    if env:
+        return Path(env).expanduser().resolve()
+    return DEFAULT_SOCIAL_CAUSAL_ARTIFACT.resolve()
 
 
 def girls_progress_pipeline_path() -> Path:

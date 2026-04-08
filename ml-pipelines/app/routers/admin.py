@@ -22,12 +22,14 @@ from app.config import (
     girls_progress_pipeline_path,
     growth_pipeline_path,
     retention_pipeline_path,
+    social_causal_pipeline_path,
     social_engagement_pipeline_path,
 )
 from app.services.girls_progress import load_girls_progress_pipeline
 from app.services.girls_trajectory import load_girls_trajectory_artifact
 from app.services.growth import load_growth_pipeline
 from app.services.retention import load_retention_pipeline
+from app.services.social_causal import load_social_causal_artifact
 from app.services.social_engagement import load_social_engagement_pipeline
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -63,6 +65,12 @@ _MODEL_CONFIG: dict[str, dict] = {
         "artifact_fn": girls_education_trajectory_pipeline_path,
         "load_fn": load_girls_trajectory_artifact,
         "state_key": "girls_trajectory_artifact",
+    },
+    "social_causal": {
+        "script": "scripts.train_social_causal",
+        "artifact_fn": social_causal_pipeline_path,
+        "load_fn": load_social_causal_artifact,
+        "state_key": "social_causal_artifact",
     },
 }
 

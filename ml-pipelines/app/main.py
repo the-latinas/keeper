@@ -9,6 +9,7 @@ Docs: http://127.0.0.1:8000/docs
 
 from __future__ import annotations
 
+import logging
 import threading
 from contextlib import asynccontextmanager
 
@@ -20,6 +21,7 @@ from app.config import (
     girls_progress_pipeline_path,
     growth_pipeline_path,
     retention_pipeline_path,
+    social_causal_pipeline_path,
     social_engagement_pipeline_path,
 )
 from app.routers.admin import router as admin_router
@@ -27,12 +29,16 @@ from app.routers.girls_progress import router as girls_progress_router
 from app.routers.girls_trajectory import router as girls_trajectory_router
 from app.routers.growth import router as growth_router
 from app.routers.retention import router as retention_router
+from app.routers.social_causal import router as social_causal_router
 from app.routers.social_engagement import router as social_engagement_router
 from app.services.girls_progress import load_girls_progress_pipeline
 from app.services.girls_trajectory import load_girls_trajectory_artifact
 from app.services.growth import load_growth_pipeline
 from app.services.retention import load_retention_pipeline
+from app.services.social_causal import load_social_causal_artifact
 from app.services.social_engagement import load_social_engagement_pipeline
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -81,6 +87,15 @@ async def lifespan(app: FastAPI):
         except Exception:
             app.state.girls_trajectory_artifact = None
 
+    app.state.social_causal_artifact = None
+    _sca_path = social_causal_pipeline_path()
+    if _sca_path.is_file():
+        try:
+            app.state.social_causal_artifact = load_social_causal_artifact(_sca_path)
+            logger.info("Social causal artifact loaded.")
+        except Exception as _e:
+            logger.warning(f"Social causal artifact not loaded: {_e}")
+
     yield
 
     app.state.retraining_lock = None
@@ -89,6 +104,7 @@ async def lifespan(app: FastAPI):
     app.state.social_engagement_pipeline = None
     app.state.girls_progress_pipeline = None
     app.state.girls_trajectory_artifact = None
+    app.state.social_causal_artifact = None
 
 
 app = FastAPI(
@@ -102,6 +118,7 @@ app.include_router(admin_router)
 app.include_router(retention_router)
 app.include_router(growth_router)
 app.include_router(social_engagement_router)
+app.include_router(social_causal_router)
 app.include_router(girls_progress_router)
 app.include_router(girls_trajectory_router)
 
@@ -116,6 +133,10 @@ def root():
         "retention": {"features": "/retention/features", "predict": "/retention/predict"},
         "growth": {"features": "/growth/features", "predict": "/growth/predict"},
         "social": {"features": "/social/features", "predict": "/social/predict"},
+        "social_causal": {
+            "features": "/social/causal/features",
+            "predict": "/social/causal/predict",
+        },
         "girls_progress": {
             "features": "/girls-progress/features",
             "predict": "/girls-progress/predict",
@@ -147,4 +168,5 @@ def health_check(request: Request):
             request.app.state, "girls_trajectory_artifact", None
         )
         is not None,
+        "social_causal_artifact_loaded": getattr(request.app.state, "social_causal_artifact", None) is not None,
     }
