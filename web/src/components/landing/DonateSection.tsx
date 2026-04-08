@@ -63,7 +63,7 @@ export default function DonateSection() {
           </Button>
 
           <p className="font-body text-xs text-muted-foreground mt-6">
-            Haven Shield is a registered 501(c)(3) nonprofit. All donations are tax-deductible.
+            Keeper is a registered 501(c)(3) nonprofit. All donations are tax-deductible.
             <br />
             EIN: 12-3456789
           </p>

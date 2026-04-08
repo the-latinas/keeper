@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WorkRouteImport } from './routes/work'
+import { Route as PrivacyPolicyRouteImport } from './routes/privacy-policy'
 import { Route as DonorRouteImport } from './routes/donor'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -19,6 +20,11 @@ import { Route as IndexRouteImport } from './routes/index'
 const WorkRoute = WorkRouteImport.update({
   id: '/work',
   path: '/work',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyPolicyRoute = PrivacyPolicyRouteImport.update({
+  id: '/privacy-policy',
+  path: '/privacy-policy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DonorRoute = DonorRouteImport.update({
@@ -53,6 +59,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/contact': typeof ContactRoute
   '/donor': typeof DonorRoute
+  '/privacy-policy': typeof PrivacyPolicyRoute
   '/work': typeof WorkRoute
 }
 export interface FileRoutesByTo {
@@ -61,6 +68,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/contact': typeof ContactRoute
   '/donor': typeof DonorRoute
+  '/privacy-policy': typeof PrivacyPolicyRoute
   '/work': typeof WorkRoute
 }
 export interface FileRoutesById {
@@ -70,14 +78,37 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/contact': typeof ContactRoute
   '/donor': typeof DonorRoute
+  '/privacy-policy': typeof PrivacyPolicyRoute
   '/work': typeof WorkRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about' | '/admin' | '/contact' | '/donor' | '/work'
+  fullPaths:
+    | '/'
+    | '/about'
+    | '/admin'
+    | '/contact'
+    | '/donor'
+    | '/privacy-policy'
+    | '/work'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/admin' | '/contact' | '/donor' | '/work'
-  id: '__root__' | '/' | '/about' | '/admin' | '/contact' | '/donor' | '/work'
+  to:
+    | '/'
+    | '/about'
+    | '/admin'
+    | '/contact'
+    | '/donor'
+    | '/privacy-policy'
+    | '/work'
+  id:
+    | '__root__'
+    | '/'
+    | '/about'
+    | '/admin'
+    | '/contact'
+    | '/donor'
+    | '/privacy-policy'
+    | '/work'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -86,6 +117,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   ContactRoute: typeof ContactRoute
   DonorRoute: typeof DonorRoute
+  PrivacyPolicyRoute: typeof PrivacyPolicyRoute
   WorkRoute: typeof WorkRoute
 }
 
@@ -96,6 +128,13 @@ declare module '@tanstack/react-router' {
       path: '/work'
       fullPath: '/work'
       preLoaderRoute: typeof WorkRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy-policy': {
+      id: '/privacy-policy'
+      path: '/privacy-policy'
+      fullPath: '/privacy-policy'
+      preLoaderRoute: typeof PrivacyPolicyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/donor': {
@@ -142,6 +181,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   ContactRoute: ContactRoute,
   DonorRoute: DonorRoute,
+  PrivacyPolicyRoute: PrivacyPolicyRoute,
   WorkRoute: WorkRoute,
 }
 export const routeTree = rootRouteImport

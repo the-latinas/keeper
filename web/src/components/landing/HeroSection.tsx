@@ -7,14 +7,13 @@ import heroBg from "@/assets/hero-bg.png";
 
 export default function HeroSection() {
   return (
-    <section id="mission" className="relative min-h-[90vh] flex items-center pt-16">
+    <section id="mission" className="relative min-h-screen flex items-center pt-16">
       <div className="absolute inset-0">
-        <img
-          src={heroBg}
-          alt="Sunrise over Philippine hills"
-          className="w-full h-full object-cover"
+        <div
+          className="w-full h-full bg-cover bg-center bg-fixed"
+          style={{ backgroundImage: `url(${heroBg})` }}
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-foreground/80 via-foreground/60 to-foreground/30" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/70 to-black/40" />
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-6 py-24">
@@ -41,7 +40,7 @@ export default function HeroSection() {
             <Link to="/" hash="donate">
               <Button
                 size="lg"
-                className="font-body text-base gap-2 bg-accent hover:bg-accent/90 text-accent-foreground px-8 h-12 rounded-lg shadow-lg"
+                className="font-body text-base gap-2 bg-accent hover:bg-accent/90 text-accent-foreground px-8 h-12 rounded-lg shadow-[0_0_20px_rgba(245,158,11,0.3)] hover:scale-105 transition-all duration-300"
               >
                 <Heart className="h-5 w-5" />
                 Donate Now
@@ -51,7 +50,7 @@ export default function HeroSection() {
               <Button
                 size="lg"
                 variant="ghost"
-                className="font-body text-base gap-2 border-2 border-white/50 text-white hover:bg-white/10 hover:text-white px-8 h-12 rounded-lg"
+                className="font-body text-base gap-2 border-2 border-white/50 text-white hover:bg-white/10 hover:text-white px-8 h-12 rounded-lg hover:scale-105 transition-all duration-300"
               >
                 Get Involved
                 <ArrowRight className="h-5 w-5" />

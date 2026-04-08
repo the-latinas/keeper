@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import Navbar from "@/components/landing/Navbar";
 import HeroSection from "@/components/landing/HeroSection";
 import DonateSection from "@/components/landing/DonateSection";
+import MoneyFlow from "@/components/landing/MoneyFlow";
 import LandingFooter from "@/components/landing/LandingFooter";
 
 export const Route = createFileRoute("/")({
@@ -15,6 +16,7 @@ function Landing() {
       <main className="flex-1">
         <HeroSection />
         <DonateSection />
+        <MoneyFlow />
       </main>
       <LandingFooter />
     </div>

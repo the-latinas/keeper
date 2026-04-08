@@ -21,7 +21,7 @@ function AdminDashboard() {
       // TODO: Call your C# auth endpoint
       // const res = await fetch(`${API_BASE}/auth/me`);
       // return res.json();
-      return { full_name: "Admin User", email: "admin@havenshield.org" };
+      return { full_name: "Admin User", email: "admin@keeper.org" };
     },
   });
 

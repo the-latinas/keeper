@@ -6,12 +6,13 @@ import logoImg from "@/assets/logo.png";
 
 export default function Navbar() {
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-border">
-      <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+    <header className="sticky top-0 left-0 right-0 z-50 flex flex-col w-full shadow-sm">
+      <nav className="bg-white/95 backdrop-blur-md border-b border-border w-full">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-3">
-          <img src={logoImg} alt="Haven Shield Logo" className="h-9 w-9 rounded-lg object-cover" />
+          <img src={logoImg} alt="Keeper Logo" className="h-9 w-9 rounded-lg object-cover" />
           <span className="font-heading text-xl font-semibold text-foreground tracking-tight">
-            Haven Shield
+            Keeper
           </span>
         </Link>
 
@@ -44,6 +45,7 @@ export default function Navbar() {
           </Link>
         </div>
       </div>
-    </nav>
+      </nav>
+    </header>
   );
 }

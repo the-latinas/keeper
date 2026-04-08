@@ -50,9 +50,9 @@ export default function AdminSidebar({ user }: { user: User | null }) {
   return (
     <aside className="fixed left-0 top-0 bottom-0 w-64 bg-sidebar flex flex-col z-50">
       <div className="p-5 flex items-center gap-3 border-b border-sidebar-border">
-        <img src={logoImg} alt="Haven Shield" className="h-9 w-9 rounded-lg" />
+        <img src={logoImg} alt="Keeper" className="h-9 w-9 rounded-lg" />
         <span className="font-heading text-lg font-semibold text-sidebar-foreground">
-          Haven Shield
+          Keeper
         </span>
       </div>
 

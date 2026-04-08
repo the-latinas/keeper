@@ -18,9 +18,9 @@ export default function DonorNav({ user }: { user: User | null }) {
     <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-border">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-3">
-          <img src={logoImg} alt="Haven Shield" className="h-9 w-9 rounded-lg object-cover" />
+          <img src={logoImg} alt="Keeper" className="h-9 w-9 rounded-lg object-cover" />
           <span className="font-heading text-xl font-semibold text-foreground tracking-tight">
-            Haven Shield
+            Keeper
           </span>
         </Link>
 
