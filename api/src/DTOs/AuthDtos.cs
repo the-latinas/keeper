@@ -25,6 +25,17 @@ public class CodeVerificationRequest
     [Required]
     [StringLength(6, MinimumLength = 6)]
     public string Code { get; set; } = string.Empty;
+
+    [EmailAddress]
+    [MaxLength(254)]
+    public string? Email { get; set; }
+}
+
+public class SignupChallengeRequest
+{
+    [EmailAddress]
+    [MaxLength(254)]
+    public string? Email { get; set; }
 }
 
 public class LoginRequest

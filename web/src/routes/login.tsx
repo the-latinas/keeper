@@ -27,6 +27,8 @@ const apiBaseUrl = (() => {
   return url;
 })();
 
+const unverifiedAccountError = "Please verify your email before signing in.";
+
 export const Route = createFileRoute("/login")({
   component: Login,
 });
@@ -37,7 +39,7 @@ function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [challenge, setChallenge] = useState<AuthChallengeResponse | null>(
-    null
+    null,
   );
   const loginMutation = useMutation({
     mutationFn: ({ email, password }: { email: string; password: string }) =>
@@ -76,6 +78,9 @@ function Login() {
     verifyMutation.reset();
     resendMutation.reset();
   }
+
+  const showVerifyLink =
+    loginMutation.error?.message === unverifiedAccountError;
 
   return (
     <div className="fixed inset-0 font-body">
@@ -179,9 +184,23 @@ function Login() {
                   />
                 </div>
                 {loginMutation.error ? (
-                  <p className="font-body text-sm text-destructive">
-                    {loginMutation.error.message}
-                  </p>
+                  <div className="space-y-2">
+                    <p className="font-body text-sm text-destructive">
+                      {loginMutation.error.message}
+                    </p>
+                    {showVerifyLink ? (
+                      <p className="font-body text-sm text-muted-foreground">
+                        <Link
+                          to="/signup/verify"
+                          search={{ email: email.trim() }}
+                          className="text-primary underline underline-offset-4"
+                        >
+                          Verify your email
+                        </Link>
+                        .
+                      </p>
+                    ) : null}
+                  </div>
                 ) : null}
                 <Button
                   type="submit"
@@ -261,7 +280,7 @@ async function resendLoginCode(): Promise<void> {
 
 async function readError(
   response: Response,
-  fallbackMessage: string
+  fallbackMessage: string,
 ): Promise<string> {
   const body = (await response.json().catch(() => null)) as {
     error?: string;

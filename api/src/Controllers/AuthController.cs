@@ -169,17 +169,13 @@ public class AuthController : ControllerBase
     [HttpPost("signup/verify")]
     public async Task<ActionResult<AuthUserResponse>> VerifySignup([FromBody] CodeVerificationRequest request)
     {
-        var challenge = _pendingSignupChallengeStore.Read(Request);
-        if (challenge is null)
+        var user = await ResolvePendingSignupUserAsync(request.Email);
+        if (user is null)
         {
-            return Unauthorized(new { error = "Your verification session expired. Please sign up again." });
-        }
-
-        var user = await _userManager.FindByIdAsync(challenge.UserId);
-        if (user is null || !string.Equals(user.Email, challenge.Email, StringComparison.OrdinalIgnoreCase))
-        {
-            _pendingSignupChallengeStore.Clear(Response, _environment.IsDevelopment());
-            return Unauthorized(new { error = "Your verification session expired. Please sign up again." });
+            return Unauthorized(new
+            {
+                error = "We couldn't find a pending signup for that email. Please sign up again."
+            });
         }
 
         var isValid = await _userManager.VerifyTwoFactorTokenAsync(user, TokenOptions.DefaultEmailProvider, request.Code.Trim());
@@ -206,19 +202,15 @@ public class AuthController : ControllerBase
     [AllowAnonymous]
     [EnableRateLimiting("auth")]
     [HttpPost("signup/resend")]
-    public async Task<IActionResult> ResendSignupCode(CancellationToken cancellationToken)
+    public async Task<IActionResult> ResendSignupCode([FromBody] SignupChallengeRequest? request, CancellationToken cancellationToken)
     {
-        var challenge = _pendingSignupChallengeStore.Read(Request);
-        if (challenge is null)
+        var user = await ResolvePendingSignupUserAsync(request?.Email);
+        if (user is null)
         {
-            return Unauthorized(new { error = "Your verification session expired. Please sign up again." });
-        }
-
-        var user = await _userManager.FindByIdAsync(challenge.UserId);
-        if (user is null || !string.Equals(user.Email, challenge.Email, StringComparison.OrdinalIgnoreCase))
-        {
-            _pendingSignupChallengeStore.Clear(Response, _environment.IsDevelopment());
-            return Unauthorized(new { error = "Your verification session expired. Please sign up again." });
+            return Unauthorized(new
+            {
+                error = "We couldn't find a pending signup for that email. Please sign up again."
+            });
         }
 
         await SendSignupCodeAsync(user, cancellationToken);
@@ -319,5 +311,48 @@ public class AuthController : ControllerBase
     {
         var code = await _userManager.GenerateTwoFactorTokenAsync(user, TokenOptions.DefaultEmailProvider);
         await _authCodeSender.SendCodeAsync(user.Email ?? string.Empty, code, "login", cancellationToken);
+    }
+
+    private async Task<ApplicationUser?> ResolvePendingSignupUserAsync(string? email)
+    {
+        var requestedEmail = email?.Trim();
+        if (!string.IsNullOrWhiteSpace(requestedEmail))
+        {
+            return await FindPendingSignupUserByEmailAsync(requestedEmail);
+        }
+
+        var challenge = _pendingSignupChallengeStore.Read(Request);
+        if (challenge is null)
+        {
+            return null;
+        }
+
+        var user = await _userManager.FindByIdAsync(challenge.UserId);
+        if (user is null
+            || user.EmailConfirmed
+            || !string.Equals(user.Email, challenge.Email, StringComparison.OrdinalIgnoreCase))
+        {
+            _pendingSignupChallengeStore.Clear(Response, _environment.IsDevelopment());
+            return null;
+        }
+
+        return user;
+    }
+
+    private async Task<ApplicationUser?> FindPendingSignupUserByEmailAsync(string email)
+    {
+        var normalizedEmail = _userManager.NormalizeEmail(email);
+        if (string.IsNullOrWhiteSpace(normalizedEmail))
+        {
+            return null;
+        }
+
+        var user = await _userManager.Users.SingleOrDefaultAsync(candidate => candidate.NormalizedEmail == normalizedEmail);
+        if (user is null || user.EmailConfirmed)
+        {
+            return null;
+        }
+
+        return user;
     }
 }

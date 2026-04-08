@@ -18,6 +18,7 @@ import { Route as ContactRouteImport } from './routes/contact'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SignupVerifyRouteImport } from './routes/signup.verify'
 
 const WorkRoute = WorkRouteImport.update({
   id: '/work',
@@ -64,6 +65,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SignupVerifyRoute = SignupVerifyRouteImport.update({
+  id: '/verify',
+  path: '/verify',
+  getParentRoute: () => SignupRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -73,8 +79,9 @@ export interface FileRoutesByFullPath {
   '/donor': typeof DonorRoute
   '/login': typeof LoginRoute
   '/privacy-policy': typeof PrivacyPolicyRoute
-  '/signup': typeof SignupRoute
+  '/signup': typeof SignupRouteWithChildren
   '/work': typeof WorkRoute
+  '/signup/verify': typeof SignupVerifyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -84,8 +91,9 @@ export interface FileRoutesByTo {
   '/donor': typeof DonorRoute
   '/login': typeof LoginRoute
   '/privacy-policy': typeof PrivacyPolicyRoute
-  '/signup': typeof SignupRoute
+  '/signup': typeof SignupRouteWithChildren
   '/work': typeof WorkRoute
+  '/signup/verify': typeof SignupVerifyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -96,8 +104,9 @@ export interface FileRoutesById {
   '/donor': typeof DonorRoute
   '/login': typeof LoginRoute
   '/privacy-policy': typeof PrivacyPolicyRoute
-  '/signup': typeof SignupRoute
+  '/signup': typeof SignupRouteWithChildren
   '/work': typeof WorkRoute
+  '/signup/verify': typeof SignupVerifyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -111,6 +120,7 @@ export interface FileRouteTypes {
     | '/privacy-policy'
     | '/signup'
     | '/work'
+    | '/signup/verify'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -122,6 +132,7 @@ export interface FileRouteTypes {
     | '/privacy-policy'
     | '/signup'
     | '/work'
+    | '/signup/verify'
   id:
     | '__root__'
     | '/'
@@ -133,6 +144,7 @@ export interface FileRouteTypes {
     | '/privacy-policy'
     | '/signup'
     | '/work'
+    | '/signup/verify'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -143,7 +155,7 @@ export interface RootRouteChildren {
   DonorRoute: typeof DonorRoute
   LoginRoute: typeof LoginRoute
   PrivacyPolicyRoute: typeof PrivacyPolicyRoute
-  SignupRoute: typeof SignupRoute
+  SignupRoute: typeof SignupRouteWithChildren
   WorkRoute: typeof WorkRoute
 }
 
@@ -212,8 +224,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/signup/verify': {
+      id: '/signup/verify'
+      path: '/verify'
+      fullPath: '/signup/verify'
+      preLoaderRoute: typeof SignupVerifyRouteImport
+      parentRoute: typeof SignupRoute
+    }
   }
 }
+
+interface SignupRouteChildren {
+  SignupVerifyRoute: typeof SignupVerifyRoute
+}
+
+const SignupRouteChildren: SignupRouteChildren = {
+  SignupVerifyRoute: SignupVerifyRoute,
+}
+
+const SignupRouteWithChildren =
+  SignupRoute._addFileChildren(SignupRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -223,7 +253,7 @@ const rootRouteChildren: RootRouteChildren = {
   DonorRoute: DonorRoute,
   LoginRoute: LoginRoute,
   PrivacyPolicyRoute: PrivacyPolicyRoute,
-  SignupRoute: SignupRoute,
+  SignupRoute: SignupRouteWithChildren,
   WorkRoute: WorkRoute,
 }
 export const routeTree = rootRouteImport
