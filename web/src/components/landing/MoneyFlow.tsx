@@ -27,7 +27,7 @@ export default function MoneyFlow() {
               initial={{ width: 0 }}
               whileInView={{ width: "10%" }}
               transition={{ duration: 1, delay: 0.4, ease: "easeOut" }}
-              className="h-full bg-accent" 
+              className="h-full bg-yellow-500" 
               title="10% Operations" 
             />
             <motion.div 
@@ -45,7 +45,7 @@ export default function MoneyFlow() {
               <span className="font-body text-sm font-medium text-foreground">85% Programs & Services</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-accent" />
+              <div className="w-3 h-3 rounded-full bg-yellow-500" />
               <span className="font-body text-sm font-medium text-foreground">10% Operations</span>
             </div>
             <div className="flex items-center gap-2">
