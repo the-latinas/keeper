@@ -133,34 +133,44 @@ public class AuthController : ControllerBase
             return Unauthorized(new { error = "Please verify your email before signing in." });
         }
 
+        if (signInResult.IsLockedOut)
+        {
+            return Unauthorized(new
+            {
+                error = "Too many failed attempts. Your account is temporarily locked. Please try again later."
+            });
+        }
+
+        // Correct password + 2FA enabled returns Succeeded=false and RequiresTwoFactor=true.
+        // Must branch here before treating !Succeeded as wrong password.
+        if (signInResult.RequiresTwoFactor)
+        {
+            var twoFactorUser = await _signInManager.GetTwoFactorAuthenticationUserAsync();
+            if (twoFactorUser is null)
+            {
+                return Unauthorized(new { error = "Your login session expired. Please try again." });
+            }
+
+            await SendLoginCodeAsync(twoFactorUser, cancellationToken);
+
+            return Ok(new AuthChallengeResponse
+            {
+                RequiresCode = true,
+                Flow = "login",
+                Email = twoFactorUser.Email ?? email
+            });
+        }
+
         if (!signInResult.Succeeded)
         {
             return Unauthorized(new { error = "Invalid email or password." });
         }
 
-        if (!signInResult.RequiresTwoFactor)
-        {
-            return Ok(new AuthChallengeResponse
-            {
-                RequiresCode = false,
-                Flow = "login",
-                Email = email
-            });
-        }
-
-        var twoFactorUser = await _signInManager.GetTwoFactorAuthenticationUserAsync();
-        if (twoFactorUser is null)
-        {
-            return Unauthorized(new { error = "Your login session expired. Please try again." });
-        }
-
-        await SendLoginCodeAsync(twoFactorUser, cancellationToken);
-
         return Ok(new AuthChallengeResponse
         {
-            RequiresCode = true,
+            RequiresCode = false,
             Flow = "login",
-            Email = twoFactorUser.Email ?? email
+            Email = email
         });
     }
 
