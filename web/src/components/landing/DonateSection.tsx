@@ -19,7 +19,7 @@ export default function DonateSection() {
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
         >
-          <span className="inline-block px-4 py-1.5 rounded-full bg-accent/20 text-accent text-xs font-body font-semibold tracking-widest uppercase mb-4">
+          <span className="inline-block px-4 py-1.5 rounded-full bg-accent/20 text-primary text-xs font-body font-semibold tracking-widest uppercase mb-4">
             Make a Difference
           </span>
           <h2 className="font-heading text-3xl md:text-4xl font-bold text-foreground mb-4 text-balance mx-auto">
