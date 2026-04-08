@@ -2,18 +2,12 @@ import { type FormEvent, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { CodeChallengeForm } from "@/components/auth/code-challenge-form";
-import { Button, buttonVariants } from "@/components/ui/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import girlsBg from "@/assets/girls_login_page.png";
+import logoImg from "@/assets/logo.png";
+import Navbar from "@/components/landing/Navbar";
 
 type AuthChallengeResponse = {
   requiresCode: boolean;
@@ -40,7 +34,7 @@ function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [challenge, setChallenge] = useState<AuthChallengeResponse | null>(
-    null,
+    null
   );
   const loginMutation = useMutation({
     mutationFn: ({ email, password }: { email: string; password: string }) =>
@@ -76,91 +70,136 @@ function Login() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-4xl flex-1 items-center justify-center px-6 py-16">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>
-            {challenge ? "Check your email" : "Login to your account"}
-          </CardTitle>
-          <CardDescription>
-            {challenge
-              ? "Enter the code we emailed you to finish signing in."
-              : "Enter your email and password to continue."}
-          </CardDescription>
-          <CardAction>
+    <div className="fixed inset-0 font-body">
+      <Navbar />
+      <div className="flex h-full">
+        {/* Left — image panel */}
+        <div className="relative hidden lg:flex lg:w-[45%]">
+          <img
+            src={girlsBg}
+            alt="Two girls smiling"
+            className="h-full w-full object-cover object-top"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+          <div className="absolute bottom-10 left-8 right-8 text-white">
+            <p className="font-heading text-2xl font-bold leading-snug">
+              Your generosity
+              <br />
+              transforms lives.
+            </p>
+            <p className="font-body mt-2.5 text-sm text-white/75 leading-relaxed">
+              Every donation provides safety, healing, and hope for girls who
+              are survivors of abuse and trafficking in the Philippines.
+            </p>
             <Link
-              to="/signup"
-              className={buttonVariants({ variant: "link", className: "px-0" })}
+              to="/impact"
+              className="mt-4 inline-block rounded-lg bg-white/15 backdrop-blur-sm border border-white/30 px-4 py-2 font-body text-sm font-medium text-white hover:bg-white/25 transition-colors"
             >
-              Sign up
+              Learn about how we make a difference →
             </Link>
-          </CardAction>
-        </CardHeader>
-        <CardContent>
-          {challenge ? (
-            <CodeChallengeForm
-              verifyLabel="Finish login"
-              isVerifying={verifyMutation.isPending}
-              isResending={resendMutation.isPending}
-              errorMessage={
-                verifyMutation.error?.message ?? resendMutation.error?.message
-              }
-              onVerify={async (code) => {
-                await verifyMutation.mutateAsync(code);
-              }}
-              onResend={async () => {
-                await resendMutation.mutateAsync();
-              }}
-              onBack={resetChallenge}
-            />
-          ) : (
-            <form className="space-y-4" onSubmit={handleSubmit}>
-              <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  autoComplete="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  required
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  required
-                />
-              </div>
-              {loginMutation.error ? (
-                <p className="text-sm text-destructive">
-                  {loginMutation.error.message}
-                </p>
-              ) : null}
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={loginMutation.isPending}
+          </div>
+        </div>
+
+        {/* Right — form panel */}
+        <div className="flex w-full flex-col items-center justify-center bg-slate-100 px-8 pt-16 pb-12 lg:w-[55%]">
+          <div className="w-full max-w-xs rounded-2xl border border-border bg-background p-8 shadow-sm">
+            {/* Logo */}
+            <Link to="/" className="mb-6 flex items-center gap-2.5">
+              <img
+                src={logoImg}
+                alt="Haven Shield"
+                className="h-8 w-8 rounded-lg object-cover"
+              />
+              <span className="font-heading text-lg font-semibold text-foreground">
+                Haven Shield
+              </span>
+            </Link>
+
+            <h1 className="font-heading text-2xl font-bold text-foreground">
+              {challenge ? "Check your email" : "Welcome back"}
+            </h1>
+            <p className="font-body mt-1.5 mb-8 text-sm text-muted-foreground">
+              {challenge
+                ? "Enter the code we emailed you to finish signing in."
+                : "Enter your email and password to continue."}
+            </p>
+
+            {challenge ? (
+              <CodeChallengeForm
+                verifyLabel="Finish login"
+                isVerifying={verifyMutation.isPending}
+                isResending={resendMutation.isPending}
+                errorMessage={
+                  verifyMutation.error?.message ?? resendMutation.error?.message
+                }
+                onVerify={async (code) => {
+                  await verifyMutation.mutateAsync(code);
+                }}
+                onResend={async () => {
+                  await resendMutation.mutateAsync();
+                }}
+                onBack={resetChallenge}
+              />
+            ) : (
+              <form className="space-y-4" onSubmit={handleSubmit}>
+                <div className="grid gap-2">
+                  <br />
+                  <Label htmlFor="email" className="font-body">
+                    Email
+                  </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="you@example.com"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    required
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="password" className="font-body">
+                    Password
+                  </Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    required
+                  />
+                </div>
+                {loginMutation.error ? (
+                  <p className="font-body text-sm text-destructive">
+                    {loginMutation.error.message}
+                  </p>
+                ) : null}
+                <Button
+                  type="submit"
+                  className="w-full font-body bg-primary hover:bg-primary/90"
+                  disabled={loginMutation.isPending}
+                >
+                  {loginMutation.isPending
+                    ? "Checking password..."
+                    : "Continue"}
+                </Button>
+              </form>
+            )}
+            <br />
+            <p className="mt-10 text-center font-body text-sm text-muted-foreground">
+              New here?{" "}
+              <Link
+                to="/signup"
+                className="text-primary underline underline-offset-4"
               >
-                {loginMutation.isPending ? "Checking password..." : "Continue"}
-              </Button>
-            </form>
-          )}
-        </CardContent>
-        <CardFooter className="justify-center text-sm text-muted-foreground">
-          New here?{" "}
-          <Link to="/signup" className="ml-1 text-primary underline">
-            Create an account
-          </Link>
-        </CardFooter>
-      </Card>
-    </main>
+                Create an account
+              </Link>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -214,7 +253,7 @@ async function resendLoginCode(): Promise<void> {
 
 async function readError(
   response: Response,
-  fallbackMessage: string,
+  fallbackMessage: string
 ): Promise<string> {
   const body = (await response.json().catch(() => null)) as {
     error?: string;
