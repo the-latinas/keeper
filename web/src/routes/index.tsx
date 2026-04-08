@@ -1,9 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import Navbar from "@/components/landing/Navbar";
 import HeroSection from "@/components/landing/HeroSection";
-import ImpactStats from "@/components/landing/ImpactStats";
-import AboutSection from "@/components/landing/AboutSection";
 import DonateSection from "@/components/landing/DonateSection";
+import MoneyFlow from "@/components/landing/MoneyFlow";
 import LandingFooter from "@/components/landing/LandingFooter";
 
 export const Route = createFileRoute("/")({
@@ -12,12 +11,13 @@ export const Route = createFileRoute("/")({
 
 function Landing() {
   return (
-    <div className="min-h-screen bg-background font-body">
+    <div className="min-h-screen bg-background font-body flex flex-col">
       <Navbar />
-      <HeroSection />
-      <ImpactStats />
-      <AboutSection />
-      <DonateSection />
+      <main className="flex-1">
+        <HeroSection />
+        <DonateSection />
+        <MoneyFlow />
+      </main>
       <LandingFooter />
     </div>
   );
