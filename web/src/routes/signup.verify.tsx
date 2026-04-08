@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import girlsBg from "@/assets/girls_login_page.png";
 import logoImg from "@/assets/logo.png";
@@ -28,6 +28,7 @@ export const Route = createFileRoute("/signup/verify")({
 
 function SignupVerify() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { email: emailFromSearch } = Route.useSearch();
   const [email, setEmail] = useState(emailFromSearch);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -35,8 +36,12 @@ function SignupVerify() {
   const verifyMutation = useMutation({
     mutationFn: ({ code, email }: { code: string; email: string }) =>
       verifySignupCode(code, email),
-    onSuccess: async () => {
-      await navigate({ to: "/" });
+    onSuccess: async (user) => {
+      queryClient.setQueryData(["auth", "me"], {
+        email: user.email,
+      });
+      await queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
+      await navigate({ to: "/donor" });
     },
   });
 
