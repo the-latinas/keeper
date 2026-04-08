@@ -13,7 +13,7 @@ import { motion } from "framer-motion";
 import type { Donation } from "@/components/admin/AdminMetrics";
 import type { DonorMetricsData } from "@/components/donor/DonorMetrics";
 
-export const Route = createFileRoute("/donor")({
+export const Route = createFileRoute("/dashboard")({
   component: DonorDashboard,
 });
 

@@ -52,7 +52,7 @@ function Signup() {
         return;
       }
 
-      await navigate({ to: "/donor" });
+      await navigate({ to: "/dashboard" });
     },
   });
 
