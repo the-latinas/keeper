@@ -1,7 +1,7 @@
+using api.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using api.Models;
 
 namespace api.Data;
 
@@ -13,11 +13,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<Donation> Donations => Set<Donation>();
     public DbSet<DonationAllocation> DonationAllocations => Set<DonationAllocation>();
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    protected override void OnModelCreating(ModelBuilder builder)
     {
-        base.OnModelCreating(modelBuilder);
+        base.OnModelCreating(builder);
 
-        modelBuilder.Entity<Supporter>(entity =>
+        builder.Entity<Supporter>(entity =>
         {
             entity.ToTable("supporters");
 
@@ -41,7 +41,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
             entity.Property(e => e.AcquisitionChannel).HasColumnName("acquisition_channel").HasMaxLength(100);
         });
 
-        modelBuilder.Entity<Donation>(entity =>
+        builder.Entity<Donation>(entity =>
         {
             entity.ToTable("donations");
 
@@ -62,7 +62,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
             entity.Property(e => e.ReferralPostId).HasColumnName("referral_post_id");
         });
 
-        modelBuilder.Entity<DonationAllocation>(entity =>
+        builder.Entity<DonationAllocation>(entity =>
         {
             entity.ToTable("donation_allocations");
 
@@ -77,7 +77,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
             entity.Property(e => e.AllocationNotes).HasColumnName("allocation_notes").HasMaxLength(2000);
         });
 
-        modelBuilder.Entity<Safehouse>(entity =>
+        builder.Entity<Safehouse>(entity =>
         {
             entity.ToTable("safehouses");
 

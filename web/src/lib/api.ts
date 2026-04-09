@@ -1,7 +1,7 @@
 export function getApiBaseUrl(): string | undefined {
-  return (import.meta.env.VITE_API_BASE_URL as string | undefined)
-    ?.trim()
-    .replace(/\/$/, "");
+	return (import.meta.env.VITE_API_BASE_URL as string | undefined)
+		?.trim()
+		.replace(/\/$/, "");
 }
 
 /** Body of GET /api/auth/me (camelCase JSON). */
@@ -11,20 +11,52 @@ export type AuthMeResponse = {
   supporterId: number | null;
 };
 
+export async function logout(): Promise<void> {
+  const apiBaseUrl = getApiBaseUrl();
+  if (!apiBaseUrl) return;
+  const res = await fetch(`${apiBaseUrl}/api/auth/logout`, {
+    method: "POST",
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error(`Logout failed: ${res.status} ${res.statusText}`);
+}
+
 export async function apiGetJson<T>(
-  path: string,
-  init?: RequestInit,
+	path: string,
+	init?: RequestInit,
 ): Promise<T> {
-  const baseUrl = getApiBaseUrl();
-  if (!baseUrl) {
-    throw new Error("API base URL not configured");
-  }
-  const url = `${baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
-  const res = await fetch(url, { ...init, credentials: "include" });
-  if (!res.ok) {
-    throw new Error(`Request failed: ${res.status} ${res.statusText}`);
-  }
-  return res.json() as Promise<T>;
+	const baseUrl = getApiBaseUrl();
+	if (!baseUrl) {
+		throw new Error("API base URL not configured");
+	}
+	const url = `${baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
+	const res = await fetch(url, { ...init, credentials: "include" });
+	if (!res.ok) {
+		throw new Error(`Request failed: ${res.status} ${res.statusText}`);
+	}
+	return res.json() as Promise<T>;
+}
+
+export async function apiPostJson<T = void>(
+	path: string,
+	body?: unknown,
+): Promise<T> {
+	const baseUrl = getApiBaseUrl();
+	if (!baseUrl) {
+		throw new Error("API base URL not configured");
+	}
+	const url = `${baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
+	const res = await fetch(url, {
+		method: "POST",
+		credentials: "include",
+		headers: { "Content-Type": "application/json" },
+		body: body !== undefined ? JSON.stringify(body) : undefined,
+	});
+	if (!res.ok) {
+		throw new Error(`Request failed: ${res.status} ${res.statusText}`);
+	}
+	if (res.status === 204) return undefined as T;
+	return res.json() as Promise<T>;
 }
 
 export async function apiPostJson<TResponse>(
