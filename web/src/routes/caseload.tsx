@@ -211,6 +211,11 @@ type ResidentApi = {
   date_closed?: string;
 };
 
+type SafehouseApi = {
+  id: string;
+  name: string;
+};
+
 const EMPTY_FORM: ResidentProfile = {
 	id: "",
 	resident_code: "",
