@@ -1,7 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import AdminSidebar from "@/components/admin/AdminSidebar";
+import { Activity, Pencil, Plus, RefreshCw, ShieldAlert, Users, X } from "lucide-react";
 import { apiGetJson, type AuthMeResponse } from "@/lib/api";
+import { requireRole } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,9 +16,6 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { useAuth } from "@/hooks/use-auth";
-import { requireRole } from "@/lib/auth";
-import { apiGetJson, getApiBaseUrl } from "@/lib/api";
 
 export const Route = createFileRoute("/caseload")({
 	beforeLoad: async ({ context }) => {
@@ -276,6 +276,13 @@ function CaseloadPage() {
     queryFn: () => apiGetJson<ResidentApi[]>("/api/admin-data/residents"),
   });
 
+  const { data: lookupsData } = useQuery<{ safehouses: { id: string; name: string }[] }>({
+    queryKey: ["admin", "lookups", "donor-ui"],
+    queryFn: () => apiGetJson<{ safehouses: { id: string; name: string }[] }>("/api/admin/lookups/donor-ui"),
+    staleTime: 60_000,
+  });
+  const SAFEHOUSES = lookupsData?.safehouses ?? [];
+
   useEffect(() => {
     const normalizeCaseStatus = (value?: string): CaseStatus => {
       const v = (value ?? "").toLowerCase();
@@ -443,7 +450,7 @@ function CaseloadPage() {
           <ViewField
             label="Case Status"
             value={
-              <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-body font-medium border ${STATUS_COLORS[r.case_status]}`}>
+              <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-body font-medium border ${STATUS_COLORS[r.case_status as CaseStatus]}`}>
                 {r.case_status}
               </span>
             }
@@ -451,7 +458,7 @@ function CaseloadPage() {
           <ViewField
             label="Risk Level"
             value={
-              <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-body font-medium border ${RISK_COLORS[r.risk_level]}`}>
+              <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-body font-medium border ${RISK_COLORS[r.risk_level as RiskLevel]}`}>
                 {r.risk_level}
               </span>
             }
@@ -848,12 +855,12 @@ function CaseloadPage() {
                       {r.case_category}
                     </TableCell>
                     <TableCell>
-                      <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-body font-medium border ${STATUS_COLORS[r.case_status]}`}>
+                      <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-body font-medium border ${STATUS_COLORS[r.case_status as CaseStatus]}`}>
                         {r.case_status}
                       </span>
                     </TableCell>
                     <TableCell>
-                      <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-body font-medium border ${RISK_COLORS[r.risk_level]}`}>
+                      <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-body font-medium border ${RISK_COLORS[r.risk_level as RiskLevel]}`}>
                         {r.risk_level}
                       </span>
                     </TableCell>

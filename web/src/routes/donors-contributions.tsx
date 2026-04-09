@@ -1,7 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import AdminSidebar from "@/components/admin/AdminSidebar";
+import { DollarSign, Gift, Heart, Pencil, Plus, TrendingUp, Users, X } from "lucide-react";
 import { apiGetJson, type AuthMeResponse } from "@/lib/api";
+import { requireRole } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,9 +16,6 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { useAuth } from "@/hooks/use-auth";
-import { requireRole } from "@/lib/auth";
-import { apiGetJson, getApiBaseUrl } from "@/lib/api";
 
 export const Route = createFileRoute("/donors-contributions")({
 	beforeLoad: async ({ context }) => {
@@ -303,6 +303,15 @@ function DonorsPage() {
     queryFn: () => apiGetJson<DonationApi[]>("/api/admin-data/donations"),
   });
 
+  const { data: lookups } = useQuery<DonorUiLookups>({
+    queryKey: ["admin", "lookups", "donor-ui"],
+    queryFn: () => apiGetJson<DonorUiLookups>("/api/admin/lookups/donor-ui"),
+    staleTime: 60_000,
+  });
+  const CAMPAIGNS = lookups?.campaigns ?? [];
+  const SAFEHOUSES = (lookups?.safehouses ?? []).map((s) => s.name);
+  const PROGRAMS = lookups?.programs ?? [];
+
   useEffect(() => {
     setSupporters(supportersFromApi);
   }, [supportersFromApi]);
@@ -443,12 +452,12 @@ function DonorsPage() {
           <ViewField label="Email" value={s.email} />
           <ViewField label="Phone" value={s.phone} />
           <ViewField label="Type" value={
-            <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${SUPPORTER_TYPE_COLORS[s.supporter_type]}`}>
+            <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${SUPPORTER_TYPE_COLORS[s.supporter_type as SupporterType]}`}>
               {s.supporter_type}
             </span>
           } />
           <ViewField label="Status" value={
-            <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${STATUS_COLORS[s.status]}`}>
+            <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${STATUS_COLORS[s.status as SupporterStatus]}`}>
               {s.status}
             </span>
           } />
@@ -478,7 +487,7 @@ function DonorsPage() {
               <div key={c.id} className="bg-background rounded-xl border border-border p-4">
                 <div className="flex items-start justify-between gap-2 mb-1">
                   <p className="font-body text-sm font-medium text-foreground">{formatDate(c.date)}</p>
-                  <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium border flex-shrink-0 ${CONTRIBUTION_TYPE_COLORS[c.contribution_type]}`}>
+                  <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium border flex-shrink-0 ${CONTRIBUTION_TYPE_COLORS[c.contribution_type as ContributionType]}`}>
                     {c.contribution_type}
                   </span>
                 </div>
@@ -821,10 +830,10 @@ function DonorsPage() {
                           {s.is_anonymous ? <span className="text-muted-foreground italic">Anonymous</span> : s.name}
                         </TableCell>
                         <TableCell>
-                          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${SUPPORTER_TYPE_COLORS[s.supporter_type]}`}>{s.supporter_type}</span>
+                          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${SUPPORTER_TYPE_COLORS[s.supporter_type as SupporterType]}`}>{s.supporter_type}</span>
                         </TableCell>
                         <TableCell>
-                          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${STATUS_COLORS[s.status]}`}>{s.status}</span>
+                          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${STATUS_COLORS[s.status as SupporterStatus]}`}>{s.status}</span>
                         </TableCell>
                         <TableCell className="font-body text-sm text-muted-foreground">{s.organization || "—"}</TableCell>
                         <TableCell className="font-body text-sm text-muted-foreground">{formatDate(s.joined_date)}</TableCell>
@@ -928,7 +937,7 @@ function DonorsPage() {
                         <TableCell className="font-body text-sm text-muted-foreground whitespace-nowrap">{formatDate(c.date)}</TableCell>
                         <TableCell className="font-body text-sm font-medium text-foreground">{c.supporter_name || "—"}</TableCell>
                         <TableCell>
-                          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${CONTRIBUTION_TYPE_COLORS[c.contribution_type]}`}>{c.contribution_type}</span>
+                          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${CONTRIBUTION_TYPE_COLORS[c.contribution_type as ContributionType]}`}>{c.contribution_type}</span>
                         </TableCell>
                         <TableCell className="font-body text-sm text-foreground max-w-[220px]">{contribDescription(c)}</TableCell>
                         <TableCell className="font-body text-xs text-muted-foreground">
@@ -960,7 +969,7 @@ function DonorsPage() {
                   {panelMode === "add" ? "Add Supporter" : panelMode === "edit" ? (supporterForm.name || "Edit") : (panelSupporter?.is_anonymous ? "Anonymous Donor" : panelSupporter?.name)}
                 </h2>
                 {panelMode !== "add" && (
-                  <span className={`inline-flex mt-1 px-2.5 py-0.5 rounded-full text-xs font-medium border ${SUPPORTER_TYPE_COLORS[(panelMode === "edit" ? supporterForm : panelSupporter)?.supporter_type ?? "Monetary Donor"]}`}>
+                  <span className={`inline-flex mt-1 px-2.5 py-0.5 rounded-full text-xs font-medium border ${SUPPORTER_TYPE_COLORS[((panelMode === "edit" ? supporterForm : panelSupporter)?.supporter_type ?? "Monetary Donor") as SupporterType]}`}>
                     {(panelMode === "edit" ? supporterForm : panelSupporter)?.supporter_type}
                   </span>
                 )}

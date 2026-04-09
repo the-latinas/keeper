@@ -18,34 +18,15 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import type { PieLabelRenderProps } from "recharts";
 import {
 	BookOpen,
 	FileText,
 	Heart,
 	Home,
-	Loader2,
 	TrendingUp,
 	Users,
 } from "lucide-react";
-import { useRef, useState } from "react";
-import type { PieLabelRenderProps } from "recharts";
-import {
-	Area,
-	AreaChart,
-	Bar,
-	BarChart,
-	CartesianGrid,
-	Cell,
-	Legend,
-	Pie,
-	PieChart,
-	ResponsiveContainer,
-	Tooltip,
-	XAxis,
-	YAxis,
-} from "recharts";
-import AdminSidebar from "@/components/admin/AdminSidebar";
-import { useAuth } from "@/hooks/use-auth";
 import { requireRole } from "@/lib/auth";
 
 export const Route = createFileRoute("/reports")({
