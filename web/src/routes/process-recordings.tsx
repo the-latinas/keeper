@@ -286,7 +286,7 @@ function ProcessRecordingsPage() {
 		<div className="min-h-screen bg-background font-body">
 			<AdminSidebar user={user ?? null} />
 
-			<main className="ml-64 p-8">
+			<main className="md:ml-64 p-4 md:p-8">
 				{/* Page header */}
 				<div className="mb-8">
 					<h1 className="font-heading text-3xl font-bold text-foreground">
@@ -298,7 +298,7 @@ function ProcessRecordingsPage() {
 					</p>
 				</div>
 
-				<div className="grid lg:grid-cols-[280px_1fr] gap-6 items-start">
+				<div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6 items-start">
 					{/* Resident selector panel */}
 					<div className="bg-card rounded-2xl border border-border shadow-sm p-5 sticky top-8">
 						<h2 className="font-heading text-base font-bold text-foreground mb-3">

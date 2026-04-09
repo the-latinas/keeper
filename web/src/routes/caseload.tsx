@@ -565,7 +565,7 @@ function CaseloadPage() {
     return (
       <div className="space-y-1 pb-6">
         <SectionDivider label="Identity & Demographics" />
-        <div className="grid grid-cols-2 gap-x-6 gap-y-3 pt-1 pb-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 pt-1 pb-3">
           <ViewField label="Full Name" value={r.full_name} />
           <ViewField label="Date of Birth" value={fmtDate(r.date_of_birth)} />
           <ViewField label="Sex" value={r.sex} />
@@ -575,7 +575,7 @@ function CaseloadPage() {
         </div>
 
         <SectionDivider label="Case Information" />
-        <div className="grid grid-cols-2 gap-x-6 gap-y-3 pt-1 pb-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 pt-1 pb-3">
           <ViewField
             label="Case Status"
             value={
@@ -620,7 +620,7 @@ function CaseloadPage() {
         </div>
 
         <SectionDivider label="PWD & Special Needs" />
-        <div className="grid grid-cols-2 gap-x-6 gap-y-3 pt-1 pb-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 pt-1 pb-3">
           <ViewField label="Person with Disability (PWD)" value={r.is_pwd ? "Yes" : "No"} />
           {r.is_pwd && <ViewField label="PWD Type" value={r.pwd_type} />}
           <ViewField label="Has Special Needs" value={r.has_special_needs ? "Yes" : "No"} />
@@ -643,7 +643,7 @@ function CaseloadPage() {
         </div>
 
         <SectionDivider label="Admission & Safehouse" />
-        <div className="grid grid-cols-2 gap-x-6 gap-y-3 pt-1 pb-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 pt-1 pb-3">
           <ViewField label="Date of Admission" value={fmtDate(r.date_of_admission)} />
           <ViewField label="Safehouse" value={r.safehouse_name} />
           <ViewField label="Date Enrolled" value={fmtDate(r.date_enrolled)} />
@@ -651,19 +651,19 @@ function CaseloadPage() {
         </div>
 
         <SectionDivider label="Referral Information" />
-        <div className="grid grid-cols-2 gap-x-6 gap-y-3 pt-1 pb-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 pt-1 pb-3">
           <ViewField label="Referring Agency / Person" value={r.referring_agency_person} />
           <ViewField label="Referral Source" value={r.referral_source} />
         </div>
 
         <SectionDivider label="Certificate of Live Birth" />
-        <div className="grid grid-cols-2 gap-x-6 gap-y-3 pt-1 pb-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 pt-1 pb-3">
           <ViewField label="Date COLB Registered" value={fmtDate(r.date_colb_registered)} />
           <ViewField label="Date COLB Obtained" value={fmtDate(r.date_colb_obtained)} />
         </div>
 
         <SectionDivider label="Case Work" />
-        <div className="grid grid-cols-2 gap-x-6 gap-y-3 pt-1 pb-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 pt-1 pb-3">
           <ViewField label="Assigned Social Worker" value={r.assigned_social_worker} />
           <ViewField label="Date Case Study Prepared" value={fmtDate(r.date_case_study_prepared)} />
           <div className="col-span-2">
@@ -672,7 +672,7 @@ function CaseloadPage() {
         </div>
 
         <SectionDivider label="Reintegration" />
-        <div className="grid grid-cols-2 gap-x-6 gap-y-3 pt-1 pb-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 pt-1 pb-3">
           <ViewField label="Type" value={r.reintegration_type} />
           <ViewField label="Status" value={r.reintegration_status} />
         </div>
@@ -695,7 +695,7 @@ function CaseloadPage() {
     return (
       <form id="resident-form" onSubmit={handleSave} className="space-y-1 pb-6">
         <SectionDivider label="Identity & Demographics" />
-        <div className="grid grid-cols-2 gap-x-4 gap-y-3 pt-1 pb-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3 pt-1 pb-3">
           <div className="col-span-2 space-y-1.5">
             <Label className="font-body text-xs font-semibold uppercase tracking-wide text-muted-foreground">Full Name <span className="text-red-500">*</span></Label>
             <Input required value={formData.full_name} onChange={(e) => handleField("full_name", e.target.value)} placeholder="Given name and surname" />
@@ -737,7 +737,7 @@ function CaseloadPage() {
         </div>
 
         <SectionDivider label="Case Information" />
-        <div className="grid grid-cols-2 gap-x-4 gap-y-3 pt-1 pb-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3 pt-1 pb-3">
           <div className="space-y-1.5">
             <Label className="font-body text-xs font-semibold uppercase tracking-wide text-muted-foreground">Case Status <span className="text-red-500">*</span></Label>
             <select required aria-label="Case status" value={formData.case_status} onChange={(e) => handleField("case_status", e.target.value as CaseStatus)} className={selectClass()}>
@@ -854,7 +854,7 @@ function CaseloadPage() {
         </div>
 
         <SectionDivider label="Admission & Safehouse" />
-        <div className="grid grid-cols-2 gap-x-4 gap-y-3 pt-1 pb-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3 pt-1 pb-3">
           <div className="space-y-1.5">
             <Label className="font-body text-xs font-semibold uppercase tracking-wide text-muted-foreground">Date of Admission <span className="text-red-500">*</span></Label>
             <Input required type="date" value={formData.date_of_admission} onChange={(e) => handleField("date_of_admission", e.target.value)} />
@@ -877,7 +877,7 @@ function CaseloadPage() {
         </div>
 
         <SectionDivider label="Referral Information" />
-        <div className="grid grid-cols-2 gap-x-4 gap-y-3 pt-1 pb-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3 pt-1 pb-3">
           <div className="space-y-1.5">
             <Label className="font-body text-xs font-semibold uppercase tracking-wide text-muted-foreground">Referring Agency / Person</Label>
             <Input value={formData.referring_agency_person} onChange={(e) => handleField("referring_agency_person", e.target.value)} placeholder="Name or organization" />
@@ -892,7 +892,7 @@ function CaseloadPage() {
         </div>
 
         <SectionDivider label="Certificate of Live Birth (COLB)" />
-        <div className="grid grid-cols-2 gap-x-4 gap-y-3 pt-1 pb-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3 pt-1 pb-3">
           <div className="space-y-1.5">
             <Label className="font-body text-xs font-semibold uppercase tracking-wide text-muted-foreground">Date COLB Registered</Label>
             <Input type="date" value={formData.date_colb_registered} onChange={(e) => handleField("date_colb_registered", e.target.value)} />
@@ -904,7 +904,7 @@ function CaseloadPage() {
         </div>
 
         <SectionDivider label="Case Work" />
-        <div className="grid grid-cols-2 gap-x-4 gap-y-3 pt-1 pb-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3 pt-1 pb-3">
           <div className="space-y-1.5">
             <Label className="font-body text-xs font-semibold uppercase tracking-wide text-muted-foreground">Assigned Social Worker <span className="text-red-500">*</span></Label>
             <Input required value={formData.assigned_social_worker} onChange={(e) => handleField("assigned_social_worker", e.target.value)} placeholder="Full name" />
@@ -926,7 +926,7 @@ function CaseloadPage() {
         </div>
 
         <SectionDivider label="Reintegration" />
-        <div className="grid grid-cols-2 gap-x-4 gap-y-3 pt-1 pb-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3 pt-1 pb-3">
           <div className="space-y-1.5">
             <Label className="font-body text-xs font-semibold uppercase tracking-wide text-muted-foreground">Reintegration Type</Label>
             <select aria-label="Reintegration type" value={formData.reintegration_type} onChange={(e) => handleField("reintegration_type", e.target.value)} className={selectClass()}>
@@ -964,7 +964,7 @@ function CaseloadPage() {
     <div className="min-h-screen bg-background font-body">
       <AdminSidebar user={user ?? null} />
 
-      <main className="ml-64 p-8">
+      <main className="md:ml-64 p-4 md:p-8">
         {/* Header */}
         <div className="flex items-start justify-between mb-6">
           <div>
@@ -1004,7 +1004,7 @@ function CaseloadPage() {
         {/* Filters */}
         <div className="bg-card rounded-2xl border border-border shadow-sm p-4 mb-6">
           <div className="flex flex-wrap gap-3 items-center">
-            <div className="relative flex-1 min-w-[180px]">
+            <div className="relative flex-1 min-w-0">
               <Input
                 placeholder="Search name or case code…"
                 value={filters.search}
@@ -1023,7 +1023,7 @@ function CaseloadPage() {
                 aria-label={placeholder}
                 value={filters[key]}
                 onChange={(e) => setFilters((f) => ({ ...f, [key]: e.target.value }))}
-                className="h-9 rounded-3xl border border-transparent bg-input/50 px-3 text-sm font-body text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 min-w-[150px]"
+                className="h-9 rounded-3xl border border-transparent bg-input/50 px-3 text-sm font-body text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 w-full md:w-auto"
               >
                 <option value="">{placeholder}</option>
                 {options.map((o) => <option key={o}>{o}</option>)}
@@ -1033,7 +1033,7 @@ function CaseloadPage() {
               aria-label="Filter by safehouse"
               value={filters.safehouse}
               onChange={(e) => setFilters((f) => ({ ...f, safehouse: e.target.value }))}
-              className="h-9 rounded-3xl border border-transparent bg-input/50 px-3 text-sm font-body text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 min-w-[150px]"
+              className="h-9 rounded-3xl border border-transparent bg-input/50 px-3 text-sm font-body text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 w-full md:w-auto"
             >
               <option value="">All Safehouses</option>
               {safehouses.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -1051,88 +1051,129 @@ function CaseloadPage() {
 
         {/* Table */}
         <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/50">
-                {["Case Code", "Full Name", "Case Category", "Status", "Risk", "Safehouse", "Social Worker", "Admitted", ""].map(
-                  (h) => (
-                    <TableHead key={h} className="font-body text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      {h}
-                    </TableHead>
-                  )
-                )}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isResidentsLoading ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="text-center py-16 text-muted-foreground font-body text-sm">
-                    Loading residents...
-                  </TableCell>
+          {/* Mobile card view */}
+          <div className="block md:hidden divide-y divide-border">
+            {isResidentsLoading ? (
+              <div className="py-16 text-center text-muted-foreground font-body text-sm">Loading residents...</div>
+            ) : residentsError ? (
+              <div className="py-16 text-center text-destructive font-body text-sm">Failed to load residents. Please refresh.</div>
+            ) : filtered.length === 0 ? (
+              <div className="py-16 text-center text-muted-foreground font-body text-sm">No residents match the current filters.</div>
+            ) : (
+              filtered.map((r) => (
+                <div key={r.id} className="p-4 cursor-pointer" onClick={() => openView(r)}>
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <div className="min-w-0">
+                      <p className="font-body text-sm font-medium text-foreground truncate">{r.full_name}</p>
+                      <p className="font-body text-xs text-muted-foreground">{r.resident_code}</p>
+                    </div>
+                    <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-body font-medium border flex-shrink-0 ${RISK_COLORS[r.current_risk_level as RiskLevel]}`}>
+                      {r.current_risk_level}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-body font-medium border ${STATUS_COLORS[r.case_status as CaseStatus]}`}>{r.case_status}</span>
+                    <span className="font-body text-xs text-muted-foreground">{r.safehouse_name}</span>
+                  </div>
+                  {r.date_of_admission && (
+                    <p className="font-body text-xs text-muted-foreground mt-1">
+                      Admitted: {new Date(r.date_of_admission + "T00:00:00").toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" })}
+                    </p>
+                  )}
+                  <div className="mt-3 flex justify-end">
+                    <Button variant="outline" onClick={(e) => { e.stopPropagation(); openView(r); }} className="font-body text-xs h-7 px-3 rounded-lg">
+                      View
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          {/* Desktop table */}
+          <div className="hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50">
+                  {["Case Code", "Full Name", "Case Category", "Status", "Risk", "Safehouse", "Social Worker", "Admitted", ""].map(
+                    (h) => (
+                      <TableHead key={h} className="font-body text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        {h}
+                      </TableHead>
+                    )
+                  )}
                 </TableRow>
-              ) : residentsError ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="text-center py-16 text-destructive font-body text-sm">
-                    Failed to load residents. Please refresh.
-                  </TableCell>
-                </TableRow>
-              ) : filtered.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="text-center py-16 text-muted-foreground font-body text-sm">
-                    No residents match the current filters.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filtered.map((r) => (
-                  <TableRow
-                    key={r.id}
-                    className="hover:bg-muted/30 transition-colors cursor-pointer"
-                    onClick={() => openView(r)}
-                  >
-                    <TableCell className="font-body text-sm font-medium text-foreground">
-                      {r.resident_code}
-                    </TableCell>
-                    <TableCell className="font-body text-sm text-foreground font-medium">
-                      {r.full_name}
-                    </TableCell>
-                    <TableCell className="font-body text-sm text-muted-foreground">
-                      {r.case_category}
-                    </TableCell>
-                    <TableCell>
-                      <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-body font-medium border ${STATUS_COLORS[r.case_status as CaseStatus]}`}>
-                        {r.case_status}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-body font-medium border ${RISK_COLORS[r.current_risk_level as RiskLevel]}`}>
-                        {r.current_risk_level}
-                      </span>
-                    </TableCell>
-                    <TableCell className="font-body text-sm text-muted-foreground">
-                      {r.safehouse_name}
-                    </TableCell>
-                    <TableCell className="font-body text-sm text-muted-foreground">
-                      {r.assigned_social_worker}
-                    </TableCell>
-                    <TableCell className="font-body text-sm text-muted-foreground">
-                      {r.date_of_admission
-                        ? new Date(r.date_of_admission + "T00:00:00").toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" })
-                        : "—"}
-                    </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <Button
-                        variant="outline"
-                        onClick={() => openView(r)}
-                        className="font-body text-xs h-7 px-3 rounded-lg"
-                      >
-                        View
-                      </Button>
+              </TableHeader>
+              <TableBody>
+                {isResidentsLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center py-16 text-muted-foreground font-body text-sm">
+                      Loading residents...
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : residentsError ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center py-16 text-destructive font-body text-sm">
+                      Failed to load residents. Please refresh.
+                    </TableCell>
+                  </TableRow>
+                ) : filtered.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center py-16 text-muted-foreground font-body text-sm">
+                      No residents match the current filters.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filtered.map((r) => (
+                    <TableRow
+                      key={r.id}
+                      className="hover:bg-muted/30 transition-colors cursor-pointer"
+                      onClick={() => openView(r)}
+                    >
+                      <TableCell className="font-body text-sm font-medium text-foreground">
+                        {r.resident_code}
+                      </TableCell>
+                      <TableCell className="font-body text-sm text-foreground font-medium">
+                        {r.full_name}
+                      </TableCell>
+                      <TableCell className="font-body text-sm text-muted-foreground">
+                        {r.case_category}
+                      </TableCell>
+                      <TableCell>
+                        <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-body font-medium border ${STATUS_COLORS[r.case_status as CaseStatus]}`}>
+                          {r.case_status}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-body font-medium border ${RISK_COLORS[r.current_risk_level as RiskLevel]}`}>
+                          {r.current_risk_level}
+                        </span>
+                      </TableCell>
+                      <TableCell className="font-body text-sm text-muted-foreground">
+                        {r.safehouse_name}
+                      </TableCell>
+                      <TableCell className="font-body text-sm text-muted-foreground">
+                        {r.assigned_social_worker}
+                      </TableCell>
+                      <TableCell className="font-body text-sm text-muted-foreground">
+                        {r.date_of_admission
+                          ? new Date(r.date_of_admission + "T00:00:00").toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" })
+                          : "—"}
+                      </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          variant="outline"
+                          onClick={() => openView(r)}
+                          className="font-body text-xs h-7 px-3 rounded-lg"
+                        >
+                          View
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       </main>
 
@@ -1146,7 +1187,7 @@ function CaseloadPage() {
           />
 
           {/* Panel */}
-          <div className="fixed inset-y-0 right-0 w-[520px] bg-background border-l border-border shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300 ease-out">
+          <div className="fixed inset-y-0 right-0 w-full md:w-[520px] bg-background border-l border-border shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300 ease-out">
             {/* Panel header */}
             <div className="flex items-start justify-between p-6 border-b border-border flex-shrink-0">
               <div>
