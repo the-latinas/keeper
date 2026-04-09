@@ -12,6 +12,10 @@ import {
 } from "lucide-react";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import { apiDelete, apiGetJson, apiPostJson, apiPutJson, type AuthMeResponse } from "@/lib/api";
+import {
+	caseloadResidentsQueryOptions,
+	type CaseloadResidentApiRow,
+} from "@/lib/caseloadResidentsQuery";
 import { requireRole } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -184,34 +188,7 @@ const RISK_COLORS: Record<RiskLevel, string> = {
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
 
-type ResidentApi = {
-  id: string;
-  resident_code?: string;
-  full_name?: string;
-  date_of_birth?: string;
-  sex?: string;
-  civil_status?: string;
-  case_status?: string;
-  case_category?: string;
-  case_subcategories?: string[];
-  risk_level?: string;
-  has_disability?: boolean;
-  disability_type?: string;
-  is_4ps_beneficiary?: boolean;
-  is_solo_parent?: boolean;
-  is_indigenous?: boolean;
-  is_informal_settler?: boolean;
-  family_parent_pwd?: boolean;
-  admission_date?: string;
-  safehouse_id?: string;
-  safehouse_name?: string;
-  referred_by?: string;
-  referral_source?: string;
-  assigned_social_worker?: string;
-  reintegration_status?: string;
-  reintegration_type?: string;
-  date_closed?: string;
-};
+type ResidentApi = CaseloadResidentApiRow;
 
 type SafehouseApi = {
   id: string;
@@ -342,11 +319,7 @@ function CaseloadPage() {
 	data: residentsFromApi = [],
 	isLoading: isResidentsLoading,
 	error: residentsError,
-  } = useQuery<ResidentApi[]>({
-	queryKey: ["admin", "caseload", "residents"],
-	staleTime: 60_000,
-	queryFn: () => apiGetJson<ResidentApi[]>("/api/admin/caseload/residents"),
-  });
+  } = useQuery<ResidentApi[]>(caseloadResidentsQueryOptions);
 
   const { data: safehouses = [] } = useQuery<SafehouseApi[]>({
 	queryKey: ["admin", "safehouses"],

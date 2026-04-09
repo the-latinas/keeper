@@ -1,9 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ChevronUp, Clock, Home, Pencil, Plus, Trash2, Users } from "lucide-react";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import { apiGetJson, getApiBaseUrl, type AuthMeResponse } from "@/lib/api";
+import {
+	caseloadResidentsQueryOptions,
+	mapCaseloadRowToPicker,
+} from "@/lib/caseloadResidentsQuery";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -72,18 +76,15 @@ interface CaseConference {
 	nextConferenceDate: string;
 }
 
-type ResidentApi = {
-  id: string;
-  full_name?: string;
-  resident_code?: string;
-};
-
 type HomeVisitApi = {
   id: number;
   resident_id: number;
   visit_date: string;
   social_worker: string;
   visit_type: string;
+  location_visited?: string;
+  family_members_present?: string;
+  purpose?: string;
   observations: string;
   family_cooperation_level: string;
   safety_concerns_noted: boolean;
@@ -297,24 +298,21 @@ function HomeVisitationsPage() {
     },
   });
 
-  const { data: residents = [] } = useQuery<Resident[]>({
-    queryKey: ["residents"],
-    staleTime: 60_000,
-    queryFn: async () => {
-      const rows = await apiGetJson<ResidentApi[]>("/api/admin-data/residents");
-      return rows.map((r) => ({
-        id: Number(r.id),
-        name: r.full_name || `Resident ${r.id}`,
-        caseNumber: r.resident_code || `RES-${r.id}`,
-      }));
-    },
-  });
+  const { data: caseloadResidentRows = [] } = useQuery(caseloadResidentsQueryOptions);
+  const residents = useMemo<Resident[]>(
+    () => caseloadResidentRows.map(mapCaseloadRowToPicker),
+    [caseloadResidentRows]
+  );
 
-  const { data: visits = [] } = useQuery<HomeVisit[]>({
-    queryKey: ["home-visitations"],
+  const { data: visits = [], isFetching: visitsFetching } = useQuery<HomeVisit[]>({
+    queryKey: ["home-visitations", selectedResident?.id ?? null],
+    enabled: selectedResident !== null,
     staleTime: 60_000,
     queryFn: async () => {
-      const rows = await apiGetJson<HomeVisitApi[]>("/api/admin-data/home-visitations");
+      if (!selectedResident) return [];
+      const rows = await apiGetJson<HomeVisitApi[]>(
+        `/api/admin-data/home-visitations?residentId=${selectedResident.id}`
+      );
       const normalizeVisitType = (value: string): VisitType => {
         if (VISIT_TYPES.includes(value as VisitType)) return value as VisitType;
         return "Routine Follow-up";
@@ -329,9 +327,9 @@ function HomeVisitationsPage() {
         visitDate: v.visit_date,
         socialWorker: v.social_worker,
         visitType: normalizeVisitType(v.visit_type),
-        locationVisited: "",
-        familyMembersPresent: "",
-        purpose: "",
+        locationVisited: v.location_visited ?? "",
+        familyMembersPresent: v.family_members_present ?? "",
+        purpose: v.purpose ?? "",
         observations: v.observations,
         familyCooperationLevel: normalizeCooperation(v.family_cooperation_level),
         safetyConcernsNoted: v.safety_concerns_noted,
@@ -369,7 +367,9 @@ function HomeVisitationsPage() {
       if (!response.ok) throw new Error("Failed to save visit");
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["home-visitations"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["home-visitations", selectedResident?.id ?? null],
+      });
     },
   });
 
@@ -385,6 +385,9 @@ function HomeVisitationsPage() {
           visit_date: payload.visitDate,
           social_worker: payload.socialWorker,
           visit_type: payload.visitType,
+          location_visited: payload.locationVisited,
+          family_members_present: payload.familyMembersPresent,
+          purpose: payload.purpose,
           observations: payload.observations,
           family_cooperation_level: payload.familyCooperationLevel,
           safety_concerns_noted: payload.safetyConcernsNoted,
@@ -396,7 +399,9 @@ function HomeVisitationsPage() {
       if (!response.ok) throw new Error("Failed to update visit");
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["home-visitations"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["home-visitations", selectedResident?.id ?? null],
+      });
       setEditingVisitId(null);
       setEditVisitForm(EMPTY_VISIT);
     },
@@ -413,7 +418,9 @@ function HomeVisitationsPage() {
       if (!response.ok) throw new Error("Failed to delete visit");
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["home-visitations"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["home-visitations", selectedResident?.id ?? null],
+      });
     },
   });
 
@@ -426,12 +433,10 @@ function HomeVisitationsPage() {
     );
   });
 
-  const residentVisits = visits
-    .filter((v) => v.residentId === selectedResident?.id)
-    .sort(
-      (a, b) =>
-        new Date(b.visitDate).getTime() - new Date(a.visitDate).getTime()
-    );
+  const residentVisits = [...visits].sort(
+    (a, b) =>
+      new Date(b.visitDate).getTime() - new Date(a.visitDate).getTime()
+  );
 
   const residentConferences = conferences
     .filter((c) => c.residentId === selectedResident?.id)
@@ -841,7 +846,11 @@ function HomeVisitationsPage() {
         <h3 className="font-heading text-lg font-bold text-foreground mb-5">
           Visit History
         </h3>
-        {residentVisits.length === 0 ? (
+        {visitsFetching && residentVisits.length === 0 ? (
+          <p className="font-body text-sm text-muted-foreground text-center py-10">
+            Loading visits…
+          </p>
+        ) : residentVisits.length === 0 ? (
           <p className="font-body text-sm text-muted-foreground text-center py-10">
             No visits recorded yet. Log the first visit above.
           </p>
@@ -1233,14 +1242,7 @@ function HomeVisitationsPage() {
                   No residents found.
                 </p>
               ) : (
-                filteredResidents.map((r) => {
-                  const vCount = visits.filter(
-                    (v) => v.residentId === r.id
-                  ).length;
-                  const cCount = conferences.filter(
-                    (c) => c.residentId === r.id
-                  ).length;
-                  return (
+                filteredResidents.map((r) => (
                     <button
                       key={r.id}
                       onClick={() => handleSelectResident(r)}
@@ -1252,11 +1254,10 @@ function HomeVisitationsPage() {
                     >
                       <div className="font-medium">{r.name}</div>
                       <div className="text-xs text-muted-foreground mt-0.5">
-                        {r.caseNumber} &middot; {vCount}v {cCount}c
+                        {r.caseNumber}
                       </div>
                     </button>
-                  );
-                })
+                  ))
               )}
             </div>
           </div>
@@ -1277,31 +1278,32 @@ function HomeVisitationsPage() {
             </div>
           ) : (
             <div className="space-y-6">
-              {/* Context bar */}
-              <div className="bg-[#FDFBF7] border-t-4 border-t-yellow-500 rounded-2xl px-6 py-4 shadow-sm">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
+              {/* Context bar — layout aligned with process-recordings yellow header */}
+              <div className="bg-[#FDFBF7] border-t-4 border-t-yellow-500 rounded-2xl px-6 py-4 shadow-sm flex flex-col gap-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                  <div className="min-w-0">
                     <h2 className="font-heading text-xl font-bold text-foreground">
                       {selectedResident.name}
                     </h2>
-                    <p className="font-body text-sm text-muted-foreground">
+                    <p className="font-body text-sm text-muted-foreground mt-0.5">
                       Case #{selectedResident.caseNumber}
                     </p>
                   </div>
-                  <div className="flex items-center gap-4 text-sm font-body text-muted-foreground">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-body text-muted-foreground shrink-0">
                     <span className="flex items-center gap-1.5">
-                      <Home className="h-4 w-4" />
-                      {residentVisits.length} visit
-                      {residentVisits.length !== 1 ? "s" : ""}
+                      <Home className="h-4 w-4 shrink-0" />
+                      {visitsFetching
+                        ? "Loading…"
+                        : `${residentVisits.length} visit${residentVisits.length !== 1 ? "s" : ""}`}
                     </span>
                     <span className="flex items-center gap-1.5">
-                      <Users className="h-4 w-4" />
+                      <Users className="h-4 w-4 shrink-0" />
                       {residentConferences.length} conference
                       {residentConferences.length !== 1 ? "s" : ""}
                     </span>
                     {upcomingConferences.length > 0 && (
                       <span className="flex items-center gap-1.5 text-yellow-700 font-semibold">
-                        <Clock className="h-4 w-4" />
+                        <Clock className="h-4 w-4 shrink-0" />
                         {upcomingConferences.length} upcoming
                       </span>
                     )}
@@ -1309,7 +1311,7 @@ function HomeVisitationsPage() {
                 </div>
 
                 {/* Tabs */}
-                <div className="flex gap-1 mt-4 bg-muted/50 rounded-xl p-1 w-fit">
+                <div className="flex gap-1 bg-muted/50 rounded-xl p-1 w-fit">
                   {(["visits", "conferences"] as const).map((tab) => (
                     <button
                       key={tab}

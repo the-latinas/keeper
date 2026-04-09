@@ -1,9 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { CalendarDays, ChevronUp, Pencil, Plus, Trash2, User, Users } from "lucide-react";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import { apiGetJson, getApiBaseUrl, type AuthMeResponse } from "@/lib/api";
+import {
+	caseloadResidentsQueryOptions,
+	mapCaseloadRowToPicker,
+} from "@/lib/caseloadResidentsQuery";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,12 +45,6 @@ interface ProcessRecording {
 	referralMade: boolean;
 	notesRestricted: string;
 }
-
-type ResidentApi = {
-  id: string;
-  full_name?: string;
-  resident_code?: string;
-};
 
 type ProcessRecordingApi = {
   id: number;
@@ -116,17 +114,11 @@ function ProcessRecordingsPage() {
     },
   });
 
-  const { data: residents = [] } = useQuery<Resident[]>({
-    queryKey: ["residents"],
-    queryFn: async () => {
-      const rows = await apiGetJson<ResidentApi[]>("/api/admin-data/residents");
-      return rows.map((r) => ({
-        id: Number(r.id),
-        name: r.full_name || `Resident ${r.id}`,
-        caseNumber: r.resident_code || `RES-${r.id}`,
-      }));
-    },
-  });
+  const { data: caseloadResidentRows = [] } = useQuery(caseloadResidentsQueryOptions);
+  const residents = useMemo<Resident[]>(
+    () => caseloadResidentRows.map(mapCaseloadRowToPicker),
+    [caseloadResidentRows]
+  );
 
   const { data: residentRecordings = [] } = useQuery<ProcessRecording[]>({
     queryKey: ["process-recordings", selectedResident?.id ?? null],
@@ -329,7 +321,7 @@ function ProcessRecordingsPage() {
 										}`}
 									>
 										<div className="font-medium">{resident.name}</div>
-										<div className="text-xs text-muted-foreground">
+										<div className="text-xs text-muted-foreground mt-0.5">
 											{resident.caseNumber}
 										</div>
 									</button>
@@ -355,12 +347,12 @@ function ProcessRecordingsPage() {
 					) : (
 						<div className="space-y-6">
 							{/* Resident context bar */}
-							<div className="bg-[#FDFBF7] border-t-4 border-t-yellow-500 rounded-2xl px-6 py-4 flex items-center justify-between shadow-sm">
-								<div>
+							<div className="bg-[#FDFBF7] border-t-4 border-t-yellow-500 rounded-2xl px-6 py-4 shadow-sm flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+								<div className="min-w-0">
 									<h2 className="font-heading text-xl font-bold text-foreground">
 										{selectedResident.name}
 									</h2>
-									<p className="font-body text-sm text-muted-foreground">
+									<p className="font-body text-sm text-muted-foreground mt-0.5">
 										Case #{selectedResident.caseNumber} &mdash;{" "}
 										{residentRecordings.length} session
 										{residentRecordings.length !== 1 ? "s" : ""} recorded
@@ -368,7 +360,7 @@ function ProcessRecordingsPage() {
 								</div>
 								<Button
 									onClick={() => setShowForm((v) => !v)}
-									className="font-body gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-5 h-10 rounded-xl shadow-sm transition-all"
+									className="shrink-0 font-body gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-5 h-10 rounded-xl shadow-sm transition-all"
 								>
 									{showForm ? (
 										<>

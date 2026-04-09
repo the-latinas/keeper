@@ -367,7 +367,9 @@ public class AdminController : ControllerBase
         }
         catch (SqlException ex) when (ex.Number == 8152)
         {
-            return BadRequest(new { error = "One or more fields exceed the maximum allowed length." });
+            return BadRequest(
+                new { error = "One or more fields exceed the maximum allowed length." }
+            );
         }
         catch (Exception ex)
         {

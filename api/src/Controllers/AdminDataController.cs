@@ -423,10 +423,16 @@ public class AdminDataController : ControllerBase
                                 WHEN LOWER(ISNULL(pr.session_type, '')) = 'group' THEN 'group'
                                 ELSE 'individual'
                             END AS session_type,
-                            ISNULL(pr.emotional_state_observed, '') AS emotional_state,
-                            ISNULL(pr.session_narrative, '') AS narrative_summary,
-                            ISNULL(pr.interventions_applied, '') AS interventions,
-                            ISNULL(pr.follow_up_actions, '') AS follow_up_actions
+                            CAST(ISNULL(pr.session_duration_minutes, 0) AS int) AS session_duration_minutes,
+                            ISNULL(pr.emotional_state_observed, '') AS emotional_state_observed,
+                            ISNULL(pr.emotional_state_end, '') AS emotional_state_end,
+                            ISNULL(pr.session_narrative, '') AS session_narrative,
+                            ISNULL(pr.interventions_applied, '') AS interventions_applied,
+                            ISNULL(pr.follow_up_actions, '') AS follow_up_actions,
+                            CAST(ISNULL(pr.progress_noted, 0) AS bit) AS progress_noted,
+                            CAST(ISNULL(pr.concerns_flagged, 0) AS bit) AS concerns_flagged,
+                            CAST(ISNULL(pr.referral_made, 0) AS bit) AS referral_made,
+                            ISNULL(pr.notes_restricted, '') AS notes_restricted
                         FROM process_recordings pr
                         WHERE pr.resident_id = {residentId.Value}
                         ORDER BY pr.session_date DESC, pr.recording_id DESC
@@ -445,10 +451,16 @@ public class AdminDataController : ControllerBase
                                 WHEN LOWER(ISNULL(pr.session_type, '')) = 'group' THEN 'group'
                                 ELSE 'individual'
                             END AS session_type,
-                            ISNULL(pr.emotional_state_observed, '') AS emotional_state,
-                            ISNULL(pr.session_narrative, '') AS narrative_summary,
-                            ISNULL(pr.interventions_applied, '') AS interventions,
-                            ISNULL(pr.follow_up_actions, '') AS follow_up_actions
+                            CAST(ISNULL(pr.session_duration_minutes, 0) AS int) AS session_duration_minutes,
+                            ISNULL(pr.emotional_state_observed, '') AS emotional_state_observed,
+                            ISNULL(pr.emotional_state_end, '') AS emotional_state_end,
+                            ISNULL(pr.session_narrative, '') AS session_narrative,
+                            ISNULL(pr.interventions_applied, '') AS interventions_applied,
+                            ISNULL(pr.follow_up_actions, '') AS follow_up_actions,
+                            CAST(ISNULL(pr.progress_noted, 0) AS bit) AS progress_noted,
+                            CAST(ISNULL(pr.concerns_flagged, 0) AS bit) AS concerns_flagged,
+                            CAST(ISNULL(pr.referral_made, 0) AS bit) AS referral_made,
+                            ISNULL(pr.notes_restricted, '') AS notes_restricted
                         FROM process_recordings pr
                         ORDER BY pr.session_date DESC, pr.recording_id DESC
                         """
@@ -472,30 +484,50 @@ public class AdminDataController : ControllerBase
     {
         try
         {
+            // Table uses explicit recording_id (seed import), not IDENTITY — allocate next key under lock.
             await _db.Database.ExecuteSqlInterpolatedAsync(
                 $"""
-                INSERT INTO process_recordings
+                BEGIN TRANSACTION;
+                DECLARE @next_recording_id int;
+                SELECT @next_recording_id = ISNULL(MAX(recording_id), 0) + 1
+                FROM dbo.process_recordings WITH (UPDLOCK, HOLDLOCK);
+                INSERT INTO dbo.process_recordings
                 (
+                   recording_id,
                    resident_id,
                    session_date,
                    social_worker,
                    session_type,
+                   session_duration_minutes,
                    emotional_state_observed,
+                   emotional_state_end,
                    session_narrative,
                    interventions_applied,
-                   follow_up_actions
+                   follow_up_actions,
+                   progress_noted,
+                   concerns_flagged,
+                   referral_made,
+                   notes_restricted
                 )
                 VALUES
                 (
+                   @next_recording_id,
                    {body.resident_id},
                    {body.session_date},
                    {body.social_worker},
                    {body.session_type},
-                   {body.emotional_state},
-                   {body.narrative_summary},
-                   {body.interventions},
-                   {body.follow_up_actions}
-                )
+                   {body.session_duration_minutes},
+                   {body.emotional_state_observed},
+                   {body.emotional_state_end},
+                   {body.session_narrative},
+                   {body.interventions_applied},
+                   {body.follow_up_actions},
+                   {body.progress_noted},
+                   {body.concerns_flagged},
+                   {body.referral_made},
+                   {body.notes_restricted}
+                );
+                COMMIT TRANSACTION;
                 """,
                 ct
             );
@@ -528,10 +560,16 @@ public class AdminDataController : ControllerBase
                     session_date = {body.session_date},
                     social_worker = {body.social_worker},
                     session_type = {body.session_type},
-                    emotional_state_observed = {body.emotional_state},
-                    session_narrative = {body.narrative_summary},
-                    interventions_applied = {body.interventions},
-                    follow_up_actions = {body.follow_up_actions}
+                    session_duration_minutes = {body.session_duration_minutes},
+                    emotional_state_observed = {body.emotional_state_observed},
+                    emotional_state_end = {body.emotional_state_end},
+                    session_narrative = {body.session_narrative},
+                    interventions_applied = {body.interventions_applied},
+                    follow_up_actions = {body.follow_up_actions},
+                    progress_noted = {body.progress_noted},
+                    concerns_flagged = {body.concerns_flagged},
+                    referral_made = {body.referral_made},
+                    notes_restricted = {body.notes_restricted}
                 WHERE recording_id = {id}
                 """,
                 ct
@@ -605,6 +643,9 @@ public class AdminDataController : ControllerBase
                             CONVERT(varchar(10), hv.visit_date, 23) AS visit_date,
                             ISNULL(hv.social_worker, '') AS social_worker,
                             ISNULL(hv.visit_type, 'Routine Follow-up') AS visit_type,
+                            ISNULL(hv.location_visited, '') AS location_visited,
+                            ISNULL(hv.family_members_present, '') AS family_members_present,
+                            ISNULL(hv.purpose, '') AS purpose,
                             ISNULL(hv.observations, '') AS observations,
                             ISNULL(hv.family_cooperation_level, 'Cooperative') AS family_cooperation_level,
                             CAST(ISNULL(hv.safety_concerns_noted, 0) AS bit) AS safety_concerns_noted,
@@ -626,6 +667,9 @@ public class AdminDataController : ControllerBase
                             CONVERT(varchar(10), hv.visit_date, 23) AS visit_date,
                             ISNULL(hv.social_worker, '') AS social_worker,
                             ISNULL(hv.visit_type, 'Routine Follow-up') AS visit_type,
+                            ISNULL(hv.location_visited, '') AS location_visited,
+                            ISNULL(hv.family_members_present, '') AS family_members_present,
+                            ISNULL(hv.purpose, '') AS purpose,
                             ISNULL(hv.observations, '') AS observations,
                             ISNULL(hv.family_cooperation_level, 'Cooperative') AS family_cooperation_level,
                             CAST(ISNULL(hv.safety_concerns_noted, 0) AS bit) AS safety_concerns_noted,
@@ -655,14 +699,23 @@ public class AdminDataController : ControllerBase
     {
         try
         {
+            // Same pattern as process_recordings: explicit visitation_id from seed data, not IDENTITY.
             await _db.Database.ExecuteSqlInterpolatedAsync(
                 $"""
-                INSERT INTO home_visitations
+                BEGIN TRANSACTION;
+                DECLARE @next_visitation_id int;
+                SELECT @next_visitation_id = ISNULL(MAX(visitation_id), 0) + 1
+                FROM dbo.home_visitations WITH (UPDLOCK, HOLDLOCK);
+                INSERT INTO dbo.home_visitations
                 (
+                   visitation_id,
                    resident_id,
                    visit_date,
                    social_worker,
                    visit_type,
+                   location_visited,
+                   family_members_present,
+                   purpose,
                    observations,
                    family_cooperation_level,
                    safety_concerns_noted,
@@ -672,17 +725,22 @@ public class AdminDataController : ControllerBase
                 )
                 VALUES
                 (
+                   @next_visitation_id,
                    {body.resident_id},
                    {body.visit_date},
                    {body.social_worker},
                    {body.visit_type},
+                   {body.location_visited},
+                   {body.family_members_present},
+                   {body.purpose},
                    {body.observations},
                    {body.family_cooperation_level},
                    {body.safety_concerns_noted},
                    {body.follow_up_notes},
                    {body.follow_up_needed},
                    {body.visit_outcome}
-                )
+                );
+                COMMIT TRANSACTION;
                 """,
                 ct
             );
@@ -715,6 +773,9 @@ public class AdminDataController : ControllerBase
                     visit_date = {body.visit_date},
                     social_worker = {body.social_worker},
                     visit_type = {body.visit_type},
+                    location_visited = {body.location_visited},
+                    family_members_present = {body.family_members_present},
+                    purpose = {body.purpose},
                     observations = {body.observations},
                     family_cooperation_level = {body.family_cooperation_level},
                     safety_concerns_noted = {body.safety_concerns_noted},
@@ -1007,10 +1068,16 @@ public class AdminDataController : ControllerBase
         public string session_date { get; set; } = string.Empty;
         public string social_worker { get; set; } = string.Empty;
         public string session_type { get; set; } = "individual";
-        public string emotional_state { get; set; } = string.Empty;
-        public string narrative_summary { get; set; } = string.Empty;
-        public string interventions { get; set; } = string.Empty;
+        public int session_duration_minutes { get; set; }
+        public string emotional_state_observed { get; set; } = string.Empty;
+        public string emotional_state_end { get; set; } = string.Empty;
+        public string session_narrative { get; set; } = string.Empty;
+        public string interventions_applied { get; set; } = string.Empty;
         public string follow_up_actions { get; set; } = string.Empty;
+        public bool progress_noted { get; set; }
+        public bool concerns_flagged { get; set; }
+        public bool referral_made { get; set; }
+        public string notes_restricted { get; set; } = string.Empty;
     }
 
     public sealed class CreateProcessRecordingRequest
@@ -1019,10 +1086,16 @@ public class AdminDataController : ControllerBase
         public string session_date { get; set; } = string.Empty;
         public string social_worker { get; set; } = string.Empty;
         public string session_type { get; set; } = "individual";
-        public string emotional_state { get; set; } = string.Empty;
-        public string narrative_summary { get; set; } = string.Empty;
-        public string interventions { get; set; } = string.Empty;
+        public int? session_duration_minutes { get; set; }
+        public string emotional_state_observed { get; set; } = string.Empty;
+        public string emotional_state_end { get; set; } = string.Empty;
+        public string session_narrative { get; set; } = string.Empty;
+        public string interventions_applied { get; set; } = string.Empty;
         public string follow_up_actions { get; set; } = string.Empty;
+        public bool progress_noted { get; set; }
+        public bool concerns_flagged { get; set; }
+        public bool referral_made { get; set; }
+        public string notes_restricted { get; set; } = string.Empty;
     }
 
     public sealed class UpdateProcessRecordingRequest
@@ -1030,10 +1103,16 @@ public class AdminDataController : ControllerBase
         public string session_date { get; set; } = string.Empty;
         public string social_worker { get; set; } = string.Empty;
         public string session_type { get; set; } = "individual";
-        public string emotional_state { get; set; } = string.Empty;
-        public string narrative_summary { get; set; } = string.Empty;
-        public string interventions { get; set; } = string.Empty;
+        public int? session_duration_minutes { get; set; }
+        public string emotional_state_observed { get; set; } = string.Empty;
+        public string emotional_state_end { get; set; } = string.Empty;
+        public string session_narrative { get; set; } = string.Empty;
+        public string interventions_applied { get; set; } = string.Empty;
         public string follow_up_actions { get; set; } = string.Empty;
+        public bool progress_noted { get; set; }
+        public bool concerns_flagged { get; set; }
+        public bool referral_made { get; set; }
+        public string notes_restricted { get; set; } = string.Empty;
     }
 
     public sealed class HomeVisitationRow
@@ -1043,6 +1122,9 @@ public class AdminDataController : ControllerBase
         public string visit_date { get; set; } = string.Empty;
         public string social_worker { get; set; } = string.Empty;
         public string visit_type { get; set; } = "Routine Follow-up";
+        public string location_visited { get; set; } = string.Empty;
+        public string family_members_present { get; set; } = string.Empty;
+        public string purpose { get; set; } = string.Empty;
         public string observations { get; set; } = string.Empty;
         public string family_cooperation_level { get; set; } = "Cooperative";
         public bool safety_concerns_noted { get; set; }
@@ -1057,6 +1139,9 @@ public class AdminDataController : ControllerBase
         public string visit_date { get; set; } = string.Empty;
         public string social_worker { get; set; } = string.Empty;
         public string visit_type { get; set; } = "Routine Follow-up";
+        public string location_visited { get; set; } = string.Empty;
+        public string family_members_present { get; set; } = string.Empty;
+        public string purpose { get; set; } = string.Empty;
         public string observations { get; set; } = string.Empty;
         public string family_cooperation_level { get; set; } = "Cooperative";
         public bool safety_concerns_noted { get; set; }
@@ -1070,6 +1155,9 @@ public class AdminDataController : ControllerBase
         public string visit_date { get; set; } = string.Empty;
         public string social_worker { get; set; } = string.Empty;
         public string visit_type { get; set; } = "Routine Follow-up";
+        public string location_visited { get; set; } = string.Empty;
+        public string family_members_present { get; set; } = string.Empty;
+        public string purpose { get; set; } = string.Empty;
         public string observations { get; set; } = string.Empty;
         public string family_cooperation_level { get; set; } = "Cooperative";
         public bool safety_concerns_noted { get; set; }
