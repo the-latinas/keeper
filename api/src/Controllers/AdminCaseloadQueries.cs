@@ -123,7 +123,7 @@ internal static class AdminCaseloadQueries
             IsIndigenous = r.FamilyIndigenous,
             IsInformalSettler = r.FamilyInformalSettler,
             AdmissionDate = FormatDateOnly(r.DateOfAdmission),
-            SafehouseId = r.SafehouseId.ToString(CultureInfo.InvariantCulture),
+            SafehouseId = r.SafehouseId?.ToString(CultureInfo.InvariantCulture) ?? string.Empty,
             SafehouseName = r.SafehouseName?.Trim() ?? string.Empty,
             ReferredBy = r.ReferringAgencyPerson?.Trim() ?? string.Empty,
             ReferralSource = r.ReferralSource?.Trim() ?? string.Empty,
@@ -276,7 +276,7 @@ internal static class AdminCaseloadQueries
         public int ResidentId { get; set; }
         public string? CaseControlNo { get; set; }
         public string? InternalCode { get; set; }
-        public int SafehouseId { get; set; }
+        public int? SafehouseId { get; set; }
         public string? SafehouseName { get; set; }
         public string? CaseStatus { get; set; }
         public string? Sex { get; set; }

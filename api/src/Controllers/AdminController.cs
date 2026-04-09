@@ -179,9 +179,13 @@ public class AdminController : ControllerBase
         CancellationToken cancellationToken
     )
     {
-        var list = await _db
+        // Fetch entities first; BuildLocation() can't be translated to SQL so projection runs in memory.
+        var entities = await _db
             .Safehouses.AsNoTracking()
             .OrderBy(s => s.SafehouseId)
+            .ToListAsync(cancellationToken);
+
+        var list = entities
             .Select(s => new AdminSafehouseDto
             {
                 Id = s.SafehouseId.ToString(CultureInfo.InvariantCulture),
@@ -191,7 +195,7 @@ public class AdminController : ControllerBase
                 Capacity = s.CapacityGirls ?? 0,
                 CurrentOccupancy = s.CurrentOccupancy ?? 0,
             })
-            .ToListAsync(cancellationToken);
+            .ToList();
 
         return Ok(list);
     }
