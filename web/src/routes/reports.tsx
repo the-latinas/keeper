@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import { apiGetJson, type AuthMeResponse } from "@/lib/api";
 import {
@@ -27,24 +27,7 @@ import {
 	TrendingUp,
 	Users,
 } from "lucide-react";
-import { useRef, useState } from "react";
 import type { PieLabelRenderProps } from "recharts";
-import {
-	Area,
-	AreaChart,
-	Bar,
-	BarChart,
-	CartesianGrid,
-	Cell,
-	Legend,
-	Pie,
-	PieChart,
-	ResponsiveContainer,
-	Tooltip,
-	XAxis,
-	YAxis,
-} from "recharts";
-import AdminSidebar from "@/components/admin/AdminSidebar";
 import { useAuth } from "@/hooks/use-auth";
 import { requireRole } from "@/lib/auth";
 

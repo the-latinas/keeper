@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import type { Activity } from "@/components/admin/ActivityFeed";
 import ActivityFeed from "@/components/admin/ActivityFeed";
-import { apiGetJson, getApiBaseUrl } from "@/lib/api";
+import { apiGetJson, type AuthMeResponse } from "@/lib/api";
 import type {
 	Donation,
 	Resident,
@@ -14,9 +14,7 @@ import CasesTable from "@/components/admin/CasesTable";
 import DonationTrends from "@/components/admin/DonationTrends";
 import OccupancyList from "@/components/admin/OccupancyList";
 import QuickActions from "@/components/admin/QuickActions";
-import { apiGetJson, type AuthMeResponse } from "@/lib/api";
-import type { Resident, Donation, Safehouse } from "@/components/admin/AdminMetrics";
-import type { Activity } from "@/components/admin/ActivityFeed";
+import { requireRole } from "@/lib/auth";
 
 export const Route = createFileRoute("/admin")({
 	beforeLoad: async ({ context }) => {

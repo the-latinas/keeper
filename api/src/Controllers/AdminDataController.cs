@@ -605,6 +605,7 @@ public class AdminDataController : ControllerBase
         }
     }
 
+    #pragma warning disable CA1707 // DTO members intentionally use snake_case to match API payloads/SQL aliases.
     public sealed class ResidentRow
     {
         public string id { get; set; } = string.Empty;
@@ -769,4 +770,5 @@ public class AdminDataController : ControllerBase
         public string label { get; set; } = string.Empty;
         public int pct { get; set; }
     }
+    #pragma warning restore CA1707
 }

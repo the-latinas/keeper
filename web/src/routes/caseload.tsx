@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import { apiGetJson, type AuthMeResponse } from "@/lib/api";
@@ -15,7 +16,6 @@ import {
 } from "@/components/ui/table";
 import { useAuth } from "@/hooks/use-auth";
 import { requireRole } from "@/lib/auth";
-import { apiGetJson, getApiBaseUrl } from "@/lib/api";
 
 export const Route = createFileRoute("/caseload")({
 	beforeLoad: async ({ context }) => {
