@@ -19,14 +19,25 @@ def growth_predict(request: Request, body: GrowthFeatures):
             status_code=503,
             detail="Growth pipeline not loaded. Run donor_growth.ipynb Phase 6 or set GROWTH_PIPELINE_PATH.",
         )
-
-    row = body.model_dump()
     try:
-        pred = predict_growth(pipeline, row)
+        pred = predict_growth(pipeline, body.model_dump())
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    return GrowthPrediction(predicted_total_monetary_value=pred, features_used=GROWTH_FEATURE_COLUMNS)
 
-    return GrowthPrediction(
-        predicted_total_monetary_value=pred,
-        features_used=GROWTH_FEATURE_COLUMNS,
-    )
+
+@router.post("/batch/predict", response_model=list[GrowthPrediction])
+def growth_batch_predict(request: Request, batch: list[GrowthFeatures]):
+    pipeline = getattr(request.app.state, "growth_pipeline", None)
+    if pipeline is None:
+        raise HTTPException(status_code=503, detail="Growth pipeline not loaded.")
+    try:
+        return [
+            GrowthPrediction(
+                predicted_total_monetary_value=predict_growth(pipeline, row.model_dump()),
+                features_used=GROWTH_FEATURE_COLUMNS,
+            )
+            for row in batch
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e

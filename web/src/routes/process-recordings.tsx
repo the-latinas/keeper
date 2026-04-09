@@ -30,10 +30,16 @@ interface ProcessRecording {
 	sessionDate: string;
 	socialWorker: string;
 	sessionType: SessionType;
-	emotionalState: string;
-	narrativeSummary: string;
-	interventions: string;
+	sessionDurationMinutes: number;
+	emotionalStateObserved: string;
+	emotionalStateEnd: string;
+	sessionNarrative: string;
+	interventionsApplied: string;
 	followUpActions: string;
+	progressNoted: boolean;
+	concernsFlagged: boolean;
+	referralMade: boolean;
+	notesRestricted: string;
 }
 
 type ResidentApi = {
@@ -48,10 +54,16 @@ type ProcessRecordingApi = {
   session_date: string;
   social_worker: string;
   session_type: SessionType;
-  emotional_state: string;
-  narrative_summary: string;
-  interventions: string;
+  session_duration_minutes: number;
+  emotional_state_observed: string;
+  emotional_state_end: string;
+  session_narrative: string;
+  interventions_applied: string;
   follow_up_actions: string;
+  progress_noted: boolean;
+  concerns_flagged: boolean;
+  referral_made: boolean;
+  notes_restricted: string;
 };
 
 const EMOTIONAL_STATES = [
@@ -71,10 +83,16 @@ const EMPTY_FORM = {
 	sessionDate: "",
 	socialWorker: "",
 	sessionType: "individual" as SessionType,
-	emotionalState: "",
-	narrativeSummary: "",
-	interventions: "",
+	sessionDurationMinutes: "" as string | number,
+	emotionalStateObserved: "",
+	emotionalStateEnd: "",
+	sessionNarrative: "",
+	interventionsApplied: "",
 	followUpActions: "",
+	progressNoted: false,
+	concernsFlagged: false,
+	referralMade: false,
+	notesRestricted: "",
 };
 
 function ProcessRecordingsPage() {
@@ -124,10 +142,16 @@ function ProcessRecordingsPage() {
         sessionDate: r.session_date,
         socialWorker: r.social_worker,
         sessionType: r.session_type,
-        emotionalState: r.emotional_state,
-        narrativeSummary: r.narrative_summary,
-        interventions: r.interventions,
+        sessionDurationMinutes: r.session_duration_minutes,
+        emotionalStateObserved: r.emotional_state_observed,
+        emotionalStateEnd: r.emotional_state_end,
+        sessionNarrative: r.session_narrative,
+        interventionsApplied: r.interventions_applied,
         followUpActions: r.follow_up_actions,
+        progressNoted: r.progress_noted,
+        concernsFlagged: r.concerns_flagged,
+        referralMade: r.referral_made,
+        notesRestricted: r.notes_restricted,
       }));
     },
   });
@@ -138,10 +162,16 @@ function ProcessRecordingsPage() {
       session_date: string;
       social_worker: string;
       session_type: SessionType;
-      emotional_state: string;
-      narrative_summary: string;
-      interventions: string;
+      session_duration_minutes: number;
+      emotional_state_observed: string;
+      emotional_state_end: string;
+      session_narrative: string;
+      interventions_applied: string;
       follow_up_actions: string;
+      progress_noted: boolean;
+      concerns_flagged: boolean;
+      referral_made: boolean;
+      notes_restricted: string;
     }) => {
       const apiBaseUrl = getApiBaseUrl();
       if (!apiBaseUrl) throw new Error("API base URL not configured");
@@ -152,45 +182,6 @@ function ProcessRecordingsPage() {
         body: JSON.stringify(payload),
       });
       if (!response.ok) throw new Error("Failed to save recording");
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: ["process-recordings", selectedResident?.id ?? null],
-      });
-    },
-  });
-
-  const updateRecordingMutation = useMutation({
-    mutationFn: async (payload: {
-      id: number;
-      session_date: string;
-      social_worker: string;
-      session_type: SessionType;
-      emotional_state: string;
-      narrative_summary: string;
-      interventions: string;
-      follow_up_actions: string;
-    }) => {
-      const apiBaseUrl = getApiBaseUrl();
-      if (!apiBaseUrl) throw new Error("API base URL not configured");
-      const response = await fetch(
-        `${apiBaseUrl}/api/admin-data/process-recordings/${payload.id}`,
-        {
-          method: "PUT",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            session_date: payload.session_date,
-            social_worker: payload.social_worker,
-            session_type: payload.session_type,
-            emotional_state: payload.emotional_state,
-            narrative_summary: payload.narrative_summary,
-            interventions: payload.interventions,
-            follow_up_actions: payload.follow_up_actions,
-          }),
-        },
-      );
-      if (!response.ok) throw new Error("Failed to update recording");
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({
@@ -232,29 +223,22 @@ function ProcessRecordingsPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedResident) return;
-    if (editingRecordingId !== null) {
-      await updateRecordingMutation.mutateAsync({
-        id: editingRecordingId,
-        session_date: formData.sessionDate,
-        social_worker: formData.socialWorker,
-        session_type: formData.sessionType,
-        emotional_state: formData.emotionalState,
-        narrative_summary: formData.narrativeSummary,
-        interventions: formData.interventions,
-        follow_up_actions: formData.followUpActions,
-      });
-    } else {
-      await createRecordingMutation.mutateAsync({
-        resident_id: selectedResident.id,
-        session_date: formData.sessionDate,
-        social_worker: formData.socialWorker,
-        session_type: formData.sessionType,
-        emotional_state: formData.emotionalState,
-        narrative_summary: formData.narrativeSummary,
-        interventions: formData.interventions,
-        follow_up_actions: formData.followUpActions,
-      });
-    }
+    await createRecordingMutation.mutateAsync({
+      resident_id: selectedResident.id,
+      session_date: formData.sessionDate,
+      social_worker: formData.socialWorker,
+      session_type: formData.sessionType,
+      session_duration_minutes: Number(formData.sessionDurationMinutes) || 0,
+      emotional_state_observed: formData.emotionalStateObserved,
+      emotional_state_end: formData.emotionalStateEnd,
+      session_narrative: formData.sessionNarrative,
+      interventions_applied: formData.interventionsApplied,
+      follow_up_actions: formData.followUpActions,
+      progress_noted: formData.progressNoted,
+      concerns_flagged: formData.concernsFlagged,
+      referral_made: formData.referralMade,
+      notes_restricted: formData.notesRestricted,
+    });
     setFormData(EMPTY_FORM);
     setShowForm(false);
     setEditingRecordingId(null);
@@ -272,10 +256,16 @@ function ProcessRecordingsPage() {
       sessionDate: recording.sessionDate,
       socialWorker: recording.socialWorker,
       sessionType: recording.sessionType,
-      emotionalState: recording.emotionalState,
-      narrativeSummary: recording.narrativeSummary,
-      interventions: recording.interventions,
+      sessionDurationMinutes: recording.sessionDurationMinutes,
+      emotionalStateObserved: recording.emotionalStateObserved,
+      emotionalStateEnd: recording.emotionalStateEnd,
+      sessionNarrative: recording.sessionNarrative,
+      interventionsApplied: recording.interventionsApplied,
       followUpActions: recording.followUpActions,
+      progressNoted: recording.progressNoted,
+      concernsFlagged: recording.concernsFlagged,
+      referralMade: recording.referralMade,
+      notesRestricted: recording.notesRestricted,
     });
     setEditingRecordingId(recording.id);
     setShowForm(true);
@@ -296,7 +286,7 @@ function ProcessRecordingsPage() {
 		<div className="min-h-screen bg-background font-body">
 			<AdminSidebar user={user ?? null} />
 
-			<main className="ml-64 p-8">
+			<main className="md:ml-64 p-4 md:p-8">
 				{/* Page header */}
 				<div className="mb-8">
 					<h1 className="font-heading text-3xl font-bold text-foreground">
@@ -308,7 +298,7 @@ function ProcessRecordingsPage() {
 					</p>
 				</div>
 
-				<div className="grid lg:grid-cols-[280px_1fr] gap-6 items-start">
+				<div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6 items-start">
 					{/* Resident selector panel */}
 					<div className="bg-card rounded-2xl border border-border shadow-sm p-5 sticky top-8">
 						<h2 className="font-heading text-base font-bold text-foreground mb-3">
@@ -477,21 +467,44 @@ function ProcessRecordingsPage() {
 												</div>
 											</div>
 
-											{/* Emotional state */}
+											{/* Duration */}
 											<div className="space-y-1.5">
 												<Label
-													htmlFor="emotionalState"
+													htmlFor="sessionDuration"
 													className="font-body text-sm font-medium text-foreground"
 												>
-													Emotional State Observed{" "}
+													Duration (minutes)
+												</Label>
+												<input
+													id="sessionDuration"
+													type="number"
+													min="1"
+													placeholder="e.g. 60"
+													value={formData.sessionDurationMinutes}
+													onChange={(e) =>
+														handleFieldChange("sessionDurationMinutes", e.target.value)
+													}
+													className="h-9 w-full rounded-3xl border border-transparent bg-input/50 px-3 text-sm font-body text-foreground transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
+												/>
+											</div>
+										</div>
+
+										<div className="grid sm:grid-cols-2 gap-5">
+											{/* Emotional state observed */}
+											<div className="space-y-1.5">
+												<Label
+													htmlFor="emotionalStateObserved"
+													className="font-body text-sm font-medium text-foreground"
+												>
+													Emotional State (Start){" "}
 													<span className="text-red-500">*</span>
 												</Label>
 												<select
-													id="emotionalState"
+													id="emotionalStateObserved"
 													required
-													value={formData.emotionalState}
+													value={formData.emotionalStateObserved}
 													onChange={(e) =>
-														handleFieldChange("emotionalState", e.target.value)
+														handleFieldChange("emotionalStateObserved", e.target.value)
 													}
 													className="h-9 w-full rounded-3xl border border-transparent bg-input/50 px-3 text-sm font-body text-foreground transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
 												>
@@ -505,47 +518,72 @@ function ProcessRecordingsPage() {
 													))}
 												</select>
 											</div>
+
+											{/* Emotional state end */}
+											<div className="space-y-1.5">
+												<Label
+													htmlFor="emotionalStateEnd"
+													className="font-body text-sm font-medium text-foreground"
+												>
+													Emotional State (End)
+												</Label>
+												<select
+													id="emotionalStateEnd"
+													value={formData.emotionalStateEnd}
+													onChange={(e) =>
+														handleFieldChange("emotionalStateEnd", e.target.value)
+													}
+													className="h-9 w-full rounded-3xl border border-transparent bg-input/50 px-3 text-sm font-body text-foreground transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
+												>
+													<option value="">Select state…</option>
+													{EMOTIONAL_STATES.map((s) => (
+														<option key={s} value={s}>
+															{s}
+														</option>
+													))}
+												</select>
+											</div>
 										</div>
 
-										{/* Narrative summary */}
+										{/* Session narrative */}
 										<div className="space-y-1.5">
 											<Label
-												htmlFor="narrativeSummary"
+												htmlFor="sessionNarrative"
 												className="font-body text-sm font-medium text-foreground"
 											>
-												Narrative Summary{" "}
+												Session Narrative{" "}
 												<span className="text-red-500">*</span>
 											</Label>
 											<textarea
-												id="narrativeSummary"
+												id="sessionNarrative"
 												required
 												rows={4}
 												placeholder="Describe what occurred during the session…"
-												value={formData.narrativeSummary}
+												value={formData.sessionNarrative}
 												onChange={(e) =>
-													handleFieldChange("narrativeSummary", e.target.value)
+													handleFieldChange("sessionNarrative", e.target.value)
 												}
 												className="w-full rounded-2xl border border-transparent bg-input/50 px-3 py-2 text-sm font-body text-foreground placeholder:text-muted-foreground transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 resize-none"
 											/>
 										</div>
 
-										{/* Interventions */}
+										{/* Interventions applied */}
 										<div className="space-y-1.5">
 											<Label
-												htmlFor="interventions"
+												htmlFor="interventionsApplied"
 												className="font-body text-sm font-medium text-foreground"
 											>
 												Interventions Applied{" "}
 												<span className="text-red-500">*</span>
 											</Label>
 											<textarea
-												id="interventions"
+												id="interventionsApplied"
 												required
 												rows={3}
 												placeholder="List techniques, approaches, or tools used…"
-												value={formData.interventions}
+												value={formData.interventionsApplied}
 												onChange={(e) =>
-													handleFieldChange("interventions", e.target.value)
+													handleFieldChange("interventionsApplied", e.target.value)
 												}
 												className="w-full rounded-2xl border border-transparent bg-input/50 px-3 py-2 text-sm font-body text-foreground placeholder:text-muted-foreground transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 resize-none"
 											/>
@@ -568,6 +606,52 @@ function ProcessRecordingsPage() {
 												value={formData.followUpActions}
 												onChange={(e) =>
 													handleFieldChange("followUpActions", e.target.value)
+												}
+												className="w-full rounded-2xl border border-transparent bg-input/50 px-3 py-2 text-sm font-body text-foreground placeholder:text-muted-foreground transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 resize-none"
+											/>
+										</div>
+
+										{/* Flags */}
+										<div className="space-y-2">
+											<Label className="font-body text-sm font-medium text-foreground">
+												Session Flags
+											</Label>
+											<div className="flex flex-wrap gap-4">
+												{(
+													[
+														["progressNoted", "Progress Noted"],
+														["concernsFlagged", "Concerns Flagged"],
+														["referralMade", "Referral Made"],
+													] as [keyof typeof formData, string][]
+												).map(([key, label]) => (
+													<label key={key} className="flex items-center gap-2 cursor-pointer">
+														<input
+															type="checkbox"
+															checked={formData[key] as boolean}
+															onChange={(e) => handleFieldChange(key, e.target.checked as never)}
+															className="h-4 w-4 rounded accent-primary"
+														/>
+														<span className="font-body text-sm text-foreground">{label}</span>
+													</label>
+												))}
+											</div>
+										</div>
+
+										{/* Restricted notes */}
+										<div className="space-y-1.5">
+											<Label
+												htmlFor="notesRestricted"
+												className="font-body text-sm font-medium text-foreground"
+											>
+												Restricted Notes
+											</Label>
+											<textarea
+												id="notesRestricted"
+												rows={2}
+												placeholder="Confidential notes visible only to authorized staff…"
+												value={formData.notesRestricted}
+												onChange={(e) =>
+													handleFieldChange("notesRestricted", e.target.value)
 												}
 												className="w-full rounded-2xl border border-transparent bg-input/50 px-3 py-2 text-sm font-body text-foreground placeholder:text-muted-foreground transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 resize-none"
 											/>
@@ -657,8 +741,31 @@ function ProcessRecordingsPage() {
 																		rec.sessionType.slice(1)}
 																</span>
 																<span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-body font-medium bg-yellow-50 text-yellow-700 border border-yellow-200">
-																	{rec.emotionalState}
+																	{rec.emotionalStateObserved}
+																	{rec.emotionalStateEnd && rec.emotionalStateEnd !== rec.emotionalStateObserved && (
+																		<> → {rec.emotionalStateEnd}</>
+																	)}
 																</span>
+																{rec.sessionDurationMinutes > 0 && (
+																	<span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-body font-medium bg-muted text-muted-foreground border border-border">
+																		{rec.sessionDurationMinutes} min
+																	</span>
+																)}
+																{rec.progressNoted && (
+																	<span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-body font-medium bg-green-50 text-green-700 border border-green-200">
+																		Progress Noted
+																	</span>
+																)}
+																{rec.concernsFlagged && (
+																	<span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-body font-medium bg-red-50 text-red-700 border border-red-200">
+																		Concerns Flagged
+																	</span>
+																)}
+																{rec.referralMade && (
+																	<span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-body font-medium bg-blue-50 text-blue-700 border border-blue-200">
+																		Referral Made
+																	</span>
+																)}
 															</div>
                               <div className="flex items-center gap-2">
                                 <Button
@@ -685,10 +792,10 @@ function ProcessRecordingsPage() {
 														<div className="space-y-3">
 															<div>
 																<p className="font-body text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
-																	Narrative Summary
+																	Session Narrative
 																</p>
 																<p className="font-body text-sm text-foreground leading-relaxed">
-																	{rec.narrativeSummary}
+																	{rec.sessionNarrative}
 																</p>
 															</div>
 															<div className="grid sm:grid-cols-2 gap-3 pt-1">
@@ -697,7 +804,7 @@ function ProcessRecordingsPage() {
 																		Interventions Applied
 																	</p>
 																	<p className="font-body text-sm text-foreground leading-relaxed">
-																		{rec.interventions}
+																		{rec.interventionsApplied}
 																	</p>
 																</div>
 																<div>

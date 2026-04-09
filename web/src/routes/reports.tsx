@@ -74,6 +74,16 @@ type ReportsSummary = {
   outcomeIndicators: { label: string; pct: number }[];
 };
 
+type ReportsMlAggregate = {
+  donor_lapse_pct: number;
+  donor_avg_predicted_giving: number;
+  donor_total: number;
+  resident_avg_progress: number;
+  resident_at_risk_count: number;
+  resident_total: number;
+  ml_offline: boolean;
+};
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatPHP(v: number) {
@@ -162,81 +172,16 @@ function ReportsPage() {
   }));
   const outcomeIndicators = reportsSummary?.outcomeIndicators ?? [];
 
-  // ── ML Predictions (sample inputs — swap for real DB data when ready) ────────
+  // ── ML Predictions (single server-side aggregate; social remains sample) ──────
   const ML_HEADERS = { "Content-Type": "application/json" };
 
-  const { data: mlRetention, isLoading: retentionLoading } = useQuery({
-    queryKey: ["ml", "retention", "sample"],
-    queryFn: () =>
-      apiGetJson<{ predicted_class: number; label: string; probability_lapsed: number; probability_retained: number }>(
-        "/api/ml/retention/predict",
-        {
-          method: "POST",
-          headers: ML_HEADERS,
-          body: JSON.stringify({
-            frequency: 3,
-            avg_monetary_value: 5000,
-            social_referral_count: 1,
-            is_recurring_donor: 0,
-            top_program_interest: "Education",
-          }),
-        }
-      ),
-    staleTime: Infinity,
-    retry: false,
-  });
-
-  const { data: mlGrowth, isLoading: growthLoading } = useQuery({
-    queryKey: ["ml", "growth", "sample"],
-    queryFn: () =>
-      apiGetJson<{ predicted_total_monetary_value: number }>(
-        "/api/ml/growth/predict",
-        {
-          method: "POST",
-          headers: ML_HEADERS,
-          body: JSON.stringify({
-            recency_days: 45,
-            frequency: 3,
-            social_referral_count: 1,
-            is_recurring_donor: 0,
-            donor_tenure_days: 730,
-            top_program_interest: "Education",
-            supporter_type: "Individual",
-            relationship_type: "Donor",
-            region: "NCR",
-            acquisition_channel: "Online",
-            status: "Active",
-          }),
-        }
-      ),
-    staleTime: Infinity,
-    retry: false,
-  });
-
-  const { data: mlGirlsProgress, isLoading: progressLoading } = useQuery({
-    queryKey: ["ml", "girls-progress", "sample"],
-    queryFn: () =>
-      apiGetJson<{ predicted_mean_progress: number }>(
-        "/api/ml/girls-progress/predict",
-        {
-          method: "POST",
-          headers: ML_HEADERS,
-          body: JSON.stringify({
-            present_age_years: 14,
-            length_stay_years: 1.5,
-            age_upon_admission_years: 12,
-            edu_earliest_progress: 60,
-            edu_earliest_attendance_rate: 0.85,
-            hw_mean_general_health_score: 7,
-            hw_mean_nutrition_score: 7,
-            case_status: "Active",
-            case_category: "Trafficked",
-            initial_risk_level: "High",
-            current_risk_level: "Medium",
-          }),
-        }
-      ),
-    staleTime: Infinity,
+  const {
+    data: mlAggregate,
+    isLoading: mlAggregateLoading,
+  } = useQuery({
+    queryKey: ["admin", "ml", "reports-aggregate"],
+    queryFn: () => apiGetJson<ReportsMlAggregate>("/api/admin/ml/reports-aggregate"),
+    staleTime: 60_000,
     retry: false,
   });
 
@@ -299,37 +244,10 @@ function ReportsPage() {
     retry: false,
   });
 
-  const { data: mlTrajectory, isLoading: trajectoryLoading } = useQuery({
-    queryKey: ["ml", "girls-trajectory", "sample"],
-    queryFn: () =>
-      apiGetJson<{ predicted_next_progress: number; risk_label: string | null }>(
-        "/api/ml/girls-trajectory/predict",
-        {
-          method: "POST",
-          headers: ML_HEADERS,
-          body: JSON.stringify({
-            current_progress: 65,
-            days_since_admission: 180,
-            present_age_years: 14,
-            age_upon_admission_years: 12,
-            has_special_needs: 0,
-            hw_mean_general_health_score: 7,
-            hw_mean_nutrition_score: 7,
-            hw_mean_energy_level_score: 7,
-            hw_mean_sleep_quality_score: 7,
-            n_incidents: 1,
-            n_home_visitations: 3,
-            n_intervention_plans: 2,
-            case_status: "Active",
-            case_category: "Trafficked",
-            initial_risk_level: "High",
-            current_risk_level: "Medium",
-          }),
-        }
-      ),
-    staleTime: Infinity,
-    retry: false,
-  });
+  const retentionLoading = mlAggregateLoading;
+  const growthLoading = mlAggregateLoading;
+  const progressLoading = mlAggregateLoading;
+  const trajectoryLoading = mlAggregateLoading;
 
   const totalDonations = donationTrend.reduce((s, d) => s + d.amount, 0);
   const totalResidents = safehousePerformance.reduce(
@@ -353,7 +271,7 @@ function ReportsPage() {
     <div className="min-h-screen bg-background font-body">
       <AdminSidebar user={user ?? null} />
 
-      <main className="ml-64 p-8">
+      <main className="md:ml-64 p-4 md:p-8">
         {/* ── Page header ─────────────────────────────────────────────────── */}
         <div className="flex items-start justify-between mb-8">
           <div>
@@ -365,7 +283,7 @@ function ReportsPage() {
               format.
             </p>
           </div>
-          <div className="flex items-center gap-3 mt-1">
+          <div className="flex items-center gap-3 mt-1 print:hidden">
             <select
               aria-label="Report year"
               value={reportYear}
@@ -401,7 +319,7 @@ function ReportsPage() {
             </span>
           </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Total Beneficiaries */}
             <div className="bg-card rounded-2xl border border-border p-5">
               <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-primary/10 text-primary mb-3">
@@ -468,7 +386,7 @@ function ReportsPage() {
           </div>
 
           {/* AAR service totals row */}
-          <div className="mt-4 grid grid-cols-3 gap-3 text-center">
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-center">
             {[
               {
                 label: "Total Services Rendered",
@@ -562,7 +480,7 @@ function ReportsPage() {
               subtitle="Residents admitted, active, and graduated per safehouse"
             />
             <div className="bg-card rounded-2xl border border-border shadow-sm p-6">
-              <ResponsiveContainer width="100%" height={240}>
+              <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={safehousePerformance} barCategoryGap="30%">
                   <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
                   <XAxis
@@ -655,7 +573,7 @@ function ReportsPage() {
               subtitle="Caring, Healing, and Teaching service counts per quarter"
             />
             <div className="bg-card rounded-2xl border border-border shadow-sm p-6">
-              <ResponsiveContainer width="100%" height={240}>
+              <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={servicesByQuarter} barCategoryGap="28%">
                   <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
                   <XAxis
@@ -789,10 +707,10 @@ function ReportsPage() {
         </div>
 
         {/* ── ML Predictions ───────────────────────────────────────────────── */}
-        <div className="mb-8">
+        <div className="mb-8 print:hidden">
           <SectionHeader
             title="ML Predictions"
-            subtitle="Sample profiles shown — connect donor & resident DB endpoints to score everyone"
+            subtitle="Live donor and resident aggregates; social cards remain sample previews"
           />
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
 
@@ -803,28 +721,28 @@ function ReportsPage() {
                   Donor Retention
                 </span>
                 <span className="font-body text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                  Sample
+                  Live
                 </span>
               </div>
               {retentionLoading ? (
                 <div className="h-10 bg-muted animate-pulse rounded-lg" />
-              ) : mlRetention ? (
+              ) : mlAggregate && !mlAggregate.ml_offline ? (
                 <>
                   <div
                     className="font-heading text-3xl font-bold"
                     style={{
                       color:
-                        mlRetention.probability_retained >= 0.7
+                        mlAggregate.donor_lapse_pct < 25
                           ? C_GREEN
-                          : mlRetention.probability_retained >= 0.4
+                          : mlAggregate.donor_lapse_pct < 40
                           ? C_YELLOW
                           : "hsl(0,72%,51%)",
                     }}
                   >
-                    {Math.round(mlRetention.probability_retained * 100)}%
+                    {Math.round(mlAggregate.donor_lapse_pct)}%
                   </div>
                   <div className="font-body text-xs text-muted-foreground">
-                    Likelihood of giving again · connect DB to score all donors
+                    Donors predicted to lapse · {mlAggregate.donor_total} scored
                   </div>
                 </>
               ) : (
@@ -839,18 +757,18 @@ function ReportsPage() {
                   Predicted Giving
                 </span>
                 <span className="font-body text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                  Sample
+                  Live
                 </span>
               </div>
               {growthLoading ? (
                 <div className="h-10 bg-muted animate-pulse rounded-lg" />
-              ) : mlGrowth ? (
+              ) : mlAggregate && !mlAggregate.ml_offline ? (
                 <>
                   <div className="font-heading text-3xl font-bold text-foreground">
-                    {formatPHP(mlGrowth.predicted_total_monetary_value)}
+                    {formatPHP(Math.round(mlAggregate.donor_avg_predicted_giving))}
                   </div>
                   <div className="font-body text-xs text-muted-foreground">
-                    Est. lifetime giving · connect DB to rank all donors by value
+                    Average predicted lifetime giving
                   </div>
                 </>
               ) : (
@@ -865,19 +783,19 @@ function ReportsPage() {
                   Edu. Progress
                 </span>
                 <span className="font-body text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                  Sample
+                  Live
                 </span>
               </div>
               {progressLoading ? (
                 <div className="h-10 bg-muted animate-pulse rounded-lg" />
-              ) : mlGirlsProgress ? (
+              ) : mlAggregate && !mlAggregate.ml_offline ? (
                 <>
                   <div className="font-heading text-3xl font-bold text-foreground">
-                    {Math.round(mlGirlsProgress.predicted_mean_progress)}
+                    {Math.round(mlAggregate.resident_avg_progress)}
                     <span className="font-body text-base font-normal text-muted-foreground">/100</span>
                   </div>
                   <div className="font-body text-xs text-muted-foreground">
-                    Expected academic score · connect DB to flag residents needing support
+                    Average predicted resident progress · {mlAggregate.resident_total} scored
                   </div>
                 </>
               ) : (
@@ -892,26 +810,26 @@ function ReportsPage() {
                   Risk Trajectory
                 </span>
                 <span className="font-body text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                  Sample
+                  Live
                 </span>
               </div>
               {trajectoryLoading ? (
                 <div className="h-10 bg-muted animate-pulse rounded-lg" />
-              ) : mlTrajectory ? (
+              ) : mlAggregate && !mlAggregate.ml_offline ? (
                 <>
                   <div
                     className="font-heading text-2xl font-bold"
                     style={{
                       color:
-                        mlTrajectory.risk_label === "At Risk"
+                        mlAggregate.resident_at_risk_count > 0
                           ? "hsl(0,72%,51%)"
                           : C_GREEN,
                     }}
                   >
-                    {mlTrajectory.risk_label ?? "On Track"}
+                    {mlAggregate.resident_at_risk_count}
                   </div>
                   <div className="font-body text-xs text-muted-foreground">
-                    Education trend · connect DB to surface all at-risk residents
+                    Residents flagged At Risk
                   </div>
                 </>
               ) : (
@@ -980,7 +898,7 @@ function ReportsPage() {
           </div>
         </div>
 
-        <div className="bg-muted/50 rounded-2xl border border-border p-5 flex items-start gap-3">
+        <div className="bg-muted/50 rounded-2xl border border-border p-5 flex items-start gap-3 print:hidden">
           <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
           <div>
             <p className="font-body text-sm font-medium text-foreground mb-0.5">

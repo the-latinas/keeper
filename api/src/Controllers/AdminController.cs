@@ -1,11 +1,14 @@
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using api.Data;
 using api.DTOs;
 using api.Security;
+using api.Services.Ml;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 namespace api.Controllers;
@@ -17,6 +20,13 @@ public class AdminController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly ILogger<AdminController> _logger;
+
+    // Snake_case serializer options for building ML service request payloads.
+    private static readonly JsonSerializerOptions MlJsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    };
 
     public AdminController(AppDbContext db, ILogger<AdminController> logger)
     {
@@ -168,21 +178,46 @@ public class AdminController : ControllerBase
         CancellationToken cancellationToken
     )
     {
-        var list = await _db
-            .Safehouses.AsNoTracking()
-            .OrderBy(s => s.SafehouseId)
-            .Select(s => new AdminSafehouseDto
-            {
-                Id = s.SafehouseId.ToString(CultureInfo.InvariantCulture),
-                Name = s.Name,
-                Location = BuildLocation(s.City, s.Region, s.Province, s.Country),
-                Status = s.Status,
-                Capacity = s.CapacityGirls ?? 0,
-                CurrentOccupancy = s.CurrentOccupancy ?? 0,
-            })
-            .ToListAsync(cancellationToken);
+        try
+        {
+            var rows = await _db
+                .Database.SqlQuery<SafehouseRow>(
+                    $"""
+                    SELECT
+                        CAST(safehouse_id AS nvarchar(40)) AS Id,
+                        ISNULL(name, CONCAT('Safehouse ', CAST(safehouse_id AS nvarchar(20)))) AS Name,
+                        LTRIM(RTRIM(CONCAT(
+                            ISNULL(city, ''),
+                            CASE WHEN city IS NOT NULL AND province IS NOT NULL THEN ', ' ELSE '' END,
+                            ISNULL(province, '')
+                        ))) AS Location,
+                        ISNULL(status, 'Active') AS Status,
+                        ISNULL(capacity_girls, 0) AS Capacity,
+                        ISNULL(current_occupancy, 0) AS CurrentOccupancy
+                    FROM dbo.safehouses
+                    ORDER BY safehouse_id ASC
+                    """
+                )
+                .ToListAsync(cancellationToken);
 
-        return Ok(list);
+            var dtos = rows.Select(r => new AdminSafehouseDto
+                {
+                    Id = r.Id,
+                    Name = r.Name,
+                    Location = r.Location,
+                    Status = r.Status,
+                    Capacity = r.Capacity,
+                    CurrentOccupancy = r.CurrentOccupancy,
+                })
+                .ToList();
+
+            return Ok(dtos);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed loading safehouses.");
+            return Ok(Array.Empty<AdminSafehouseDto>());
+        }
     }
 
     /// <summary>All supporters for Donors & Contributions (read-only Phase 1).</summary>
@@ -307,21 +342,38 @@ public class AdminController : ControllerBase
         var displayName = body.IsAnonymous ? "Anonymous Donor" : body.Name.Trim();
         var status = string.IsNullOrWhiteSpace(body.Status) ? "Active" : body.Status.Trim();
 
-        var affected = await _db.Database.ExecuteSqlInterpolatedAsync(
-            $"""
-            UPDATE dbo.supporters
-            SET
-                supporter_type = {dbSupporterType},
-                display_name = {displayName},
-                organization_name = {NullIfWhiteSpace(body.Organization)},
-                email = {NullIfWhiteSpace(body.Email)},
-                phone = {NullIfWhiteSpace(body.Phone)},
-                status = {status},
-                created_at = {createdAt}
-            WHERE supporter_id = {supporterId};
-            """,
-            cancellationToken
-        );
+        int affected;
+        try
+        {
+            affected = await _db.Database.ExecuteSqlInterpolatedAsync(
+                $"""
+                UPDATE dbo.supporters
+                SET
+                    supporter_type = {dbSupporterType},
+                    display_name = {displayName},
+                    organization_name = {NullIfWhiteSpace(body.Organization)},
+                    email = {NullIfWhiteSpace(body.Email)},
+                    phone = {NullIfWhiteSpace(body.Phone)},
+                    status = {status},
+                    created_at = {createdAt}
+                WHERE supporter_id = {supporterId};
+                """,
+                cancellationToken
+            );
+        }
+        catch (SqlException ex) when (ex.Number == 2627 || ex.Number == 2601)
+        {
+            return Conflict(new { error = "A supporter with that email already exists." });
+        }
+        catch (SqlException ex) when (ex.Number == 8152)
+        {
+            return BadRequest(new { error = "One or more fields exceed the maximum allowed length." });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update supporter {SupporterId}.", supporterId);
+            return StatusCode(500, new { error = "Failed to save supporter." });
+        }
 
         if (affected == 0)
         {
@@ -338,20 +390,47 @@ public class AdminController : ControllerBase
         CancellationToken cancellationToken
     )
     {
-        var affected = await _db.Database.ExecuteSqlInterpolatedAsync(
-            $"""
-            DELETE FROM dbo.supporters
-            WHERE supporter_id = {supporterId};
-            """,
-            cancellationToken
-        );
-
-        if (affected == 0)
+        try
         {
-            return NotFound(new { error = "Supporter not found." });
-        }
+            // Delete donation allocations for this supporter's donations first, then donations, then supporter.
+            await _db.Database.ExecuteSqlInterpolatedAsync(
+                $"""
+                DELETE da
+                FROM dbo.donation_allocations da
+                INNER JOIN dbo.donations d ON d.donation_id = da.donation_id
+                WHERE d.supporter_id = {supporterId};
+                """,
+                cancellationToken
+            );
 
-        return NoContent();
+            await _db.Database.ExecuteSqlInterpolatedAsync(
+                $"""
+                DELETE FROM dbo.donations
+                WHERE supporter_id = {supporterId};
+                """,
+                cancellationToken
+            );
+
+            var affected = await _db.Database.ExecuteSqlInterpolatedAsync(
+                $"""
+                DELETE FROM dbo.supporters
+                WHERE supporter_id = {supporterId};
+                """,
+                cancellationToken
+            );
+
+            if (affected == 0)
+            {
+                return NotFound(new { error = "Supporter not found." });
+            }
+
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete supporter {SupporterId}.", supporterId);
+            return StatusCode(500, new { error = "Failed to delete supporter." });
+        }
     }
 
     /// <summary>Enriched donation rows for the Contributions tab (amounts in PHP).</summary>
@@ -373,6 +452,656 @@ public class AdminController : ControllerBase
     {
         var dto = await AdminDonorQueries.GetDonorUiLookupsAsync(_db, cancellationToken);
         return Ok(dto);
+    }
+
+    /// <summary>
+    /// Donor-level ML feature payloads used by retention and growth models.
+    /// </summary>
+    [HttpGet("ml/donor-features")]
+    public async Task<ActionResult<IReadOnlyList<AdminDonorMlFeaturesDto>>> GetDonorMlFeatures(
+        [FromQuery] int take = 5000,
+        CancellationToken cancellationToken = default
+    )
+    {
+        take = Math.Clamp(take, 1, 20_000);
+        return Ok(await FetchDonorMlFeaturesAsync(take, cancellationToken));
+    }
+
+    private async Task<List<AdminDonorMlFeaturesDto>> FetchDonorMlFeaturesAsync(
+        int take,
+        CancellationToken ct
+    )
+    {
+        var supporters = await _db
+            .Supporters.AsNoTracking()
+            .OrderBy(s => s.SupporterId)
+            .Take(take)
+            .Select(s => new
+            {
+                s.SupporterId,
+                s.DisplayName,
+                s.OrganizationName,
+                s.FirstName,
+                s.LastName,
+                s.CreatedAt,
+                s.FirstDonationDate,
+                s.SupporterType,
+                s.RelationshipType,
+                s.Region,
+                s.AcquisitionChannel,
+                s.Status,
+            })
+            .ToListAsync(ct);
+
+        if (supporters.Count == 0)
+            return [];
+
+        var supporterIds = supporters.Select(s => s.SupporterId).ToArray();
+
+        var donationStats = await _db
+            .Donations.AsNoTracking()
+            .Where(d => d.SupporterId.HasValue && supporterIds.Contains(d.SupporterId.Value))
+            .GroupBy(d => d.SupporterId!.Value)
+            .Select(g => new
+            {
+                SupporterId = g.Key,
+                Frequency = g.Count(),
+                AvgMonetaryValue = g.Average(x => (decimal?)x.Amount),
+                SocialReferralCount = g.Count(x => x.ReferralPostId != null),
+                IsRecurringDonor = g.Any(x => x.IsRecurring),
+                LastDonationDate = g.Max(x => (DateOnly?)x.DonationDate),
+                FirstDonationDate = g.Min(x => (DateOnly?)x.DonationDate),
+            })
+            .ToDictionaryAsync(x => x.SupporterId, ct);
+
+        var topProgramRows = await (
+            from d in _db.Donations.AsNoTracking()
+            join a in _db.DonationAllocations.AsNoTracking() on d.DonationId equals a.DonationId
+            where d.SupporterId.HasValue && supporterIds.Contains(d.SupporterId.Value)
+            where a.ProgramArea != null && a.ProgramArea != ""
+            group a by new
+            {
+                SupporterId = d.SupporterId!.Value,
+                ProgramArea = a.ProgramArea!,
+            } into g
+            select new
+            {
+                g.Key.SupporterId,
+                g.Key.ProgramArea,
+                Count = g.Count(),
+            }
+        ).ToListAsync(ct);
+
+        var topProgramBySupporter = topProgramRows
+            .GroupBy(x => x.SupporterId)
+            .ToDictionary(
+                g => g.Key,
+                g =>
+                    g.OrderByDescending(x => x.Count)
+                        .ThenBy(x => x.ProgramArea)
+                        .Select(x => x.ProgramArea)
+                        .FirstOrDefault()
+            );
+
+        var utcToday = DateOnly.FromDateTime(DateTime.UtcNow);
+        var result = new List<AdminDonorMlFeaturesDto>(supporters.Count);
+
+        foreach (var s in supporters)
+        {
+            donationStats.TryGetValue(s.SupporterId, out var stats);
+            topProgramBySupporter.TryGetValue(s.SupporterId, out var topProgram);
+
+            var anchorDate = s.CreatedAt.HasValue
+                ? DateOnly.FromDateTime(s.CreatedAt.Value)
+                : s.FirstDonationDate ?? stats?.FirstDonationDate;
+            var donorTenureDays = anchorDate.HasValue
+                ? Math.Max(0, utcToday.DayNumber - anchorDate.Value.DayNumber)
+                : 0;
+            float? recencyDays =
+                stats?.LastDonationDate.HasValue == true
+                    ? Math.Max(0, utcToday.DayNumber - stats.LastDonationDate.Value.DayNumber)
+                    : null;
+
+            result.Add(
+                new AdminDonorMlFeaturesDto
+                {
+                    SupporterId = s.SupporterId.ToString(CultureInfo.InvariantCulture),
+                    SupporterName = ResolveSupporterName(
+                        s.DisplayName,
+                        s.OrganizationName,
+                        s.FirstName,
+                        s.LastName,
+                        s.SupporterId
+                    ),
+                    Frequency = stats?.Frequency ?? 0,
+                    AvgMonetaryValue = stats?.AvgMonetaryValue is decimal avg ? (float)avg : null,
+                    SocialReferralCount = stats?.SocialReferralCount ?? 0,
+                    IsRecurringDonor = stats?.IsRecurringDonor == true ? 1 : 0,
+                    TopProgramInterest = topProgram,
+                    RecencyDays = recencyDays,
+                    DonorTenureDays = donorTenureDays,
+                    SupporterType = s.SupporterType,
+                    RelationshipType = s.RelationshipType,
+                    Region = s.Region,
+                    AcquisitionChannel = s.AcquisitionChannel,
+                    Status = s.Status,
+                }
+            );
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Resident-level ML feature payloads used by girls-progress and girls-trajectory models.
+    /// </summary>
+    [HttpGet("ml/resident-features")]
+    public async Task<
+        ActionResult<IReadOnlyList<AdminResidentMlFeaturesDto>>
+    > GetResidentMlFeatures(
+        [FromQuery] int take = 5000,
+        CancellationToken cancellationToken = default
+    )
+    {
+        take = Math.Clamp(take, 1, 20_000);
+        return Ok(await FetchResidentMlFeaturesAsync(take, cancellationToken));
+    }
+
+    private async Task<List<AdminResidentMlFeaturesDto>> FetchResidentMlFeaturesAsync(
+        int take,
+        CancellationToken ct
+    )
+    {
+        var rows = await _db
+            .Database.SqlQuery<ResidentMlRow>(
+                $"""
+                WITH base_residents AS (
+                    SELECT TOP ({take})
+                        r.resident_id AS ResidentId,
+                        ISNULL(NULLIF(LTRIM(RTRIM(r.internal_code)), ''), CAST(r.resident_id AS varchar(20))) AS ResidentCode,
+                        CAST(DATEDIFF(day, r.date_of_birth, GETUTCDATE()) / 365.25 AS float) AS PresentAgeYears,
+                        CAST(DATEDIFF(day, r.date_of_admission, GETUTCDATE()) / 365.25 AS float) AS LengthStayYears,
+                        CAST(DATEDIFF(day, r.date_of_birth, r.date_of_admission) / 365.25 AS float) AS AgeUponAdmissionYears,
+                        CAST(r.sub_cat_orphaned AS int) AS SubCatOrphaned,
+                        CAST(r.sub_cat_trafficked AS int) AS SubCatTrafficked,
+                        CAST(r.sub_cat_child_labor AS int) AS SubCatChildLabor,
+                        CAST(r.sub_cat_physical_abuse AS int) AS SubCatPhysicalAbuse,
+                        CAST(r.sub_cat_sexual_abuse AS int) AS SubCatSexualAbuse,
+                        CAST(r.sub_cat_osaec AS int) AS SubCatOsaec,
+                        CAST(r.sub_cat_cicl AS int) AS SubCatCicl,
+                        CAST(r.sub_cat_at_risk AS int) AS SubCatAtRisk,
+                        CAST(r.sub_cat_street_child AS int) AS SubCatStreetChild,
+                        CAST(r.sub_cat_child_with_hiv AS int) AS SubCatChildWithHiv,
+                        CAST(r.is_pwd AS int) AS IsPwd,
+                        CAST(r.has_special_needs AS int) AS HasSpecialNeeds,
+                        CAST(r.family_is_4ps AS int) AS FamilyIs4ps,
+                        CAST(r.family_solo_parent AS int) AS FamilySoloParent,
+                        CAST(r.family_indigenous AS int) AS FamilyIndigenous,
+                        CAST(r.family_parent_pwd AS int) AS FamilyParentPwd,
+                        CAST(r.family_informal_settler AS int) AS FamilyInformalSettler,
+                        ISNULL(r.case_status, '') AS CaseStatus,
+                        ISNULL(r.sex, '') AS Sex,
+                        ISNULL(r.birth_status, '') AS BirthStatus,
+                        ISNULL(r.case_category, '') AS CaseCategory,
+                        ISNULL(r.referral_source, '') AS ReferralSource,
+                        ISNULL(r.assigned_social_worker, '') AS AssignedSocialWorker,
+                        ISNULL(r.reintegration_type, '') AS ReintegrationType,
+                        ISNULL(r.reintegration_status, '') AS ReintegrationStatus,
+                        ISNULL(r.initial_risk_level, '') AS InitialRiskLevel,
+                        ISNULL(r.current_risk_level, '') AS CurrentRiskLevel,
+                        ISNULL(r.pwd_type, '') AS PwdType,
+                        ISNULL(r.special_needs_diagnosis, '') AS SpecialNeedsDiagnosis,
+                        sh.region AS Region,
+                        sh.province AS Province,
+                        sh.status AS SafehouseStatus,
+                        CAST(
+                            CASE
+                                WHEN ISNULL(sh.capacity_girls, 0) > 0
+                                    THEN CAST(ISNULL(sh.current_occupancy, 0) AS float) / CAST(sh.capacity_girls AS float)
+                                ELSE NULL
+                            END AS float
+                        ) AS OccupancyRatio,
+                        CAST(DATEDIFF(day, r.date_of_admission, GETUTCDATE()) AS float) AS DaysSinceAdmission
+                    FROM dbo.residents r
+                    LEFT JOIN dbo.safehouses sh ON sh.safehouse_id = r.safehouse_id
+                    ORDER BY r.resident_id
+                ),
+                hw AS (
+                    SELECT
+                        h.resident_id AS ResidentId,
+                        CAST(AVG(CAST(h.general_health_score AS float)) AS float) AS HwMeanGeneralHealthScore,
+                        CAST(AVG(CAST(h.nutrition_score AS float)) AS float) AS HwMeanNutritionScore,
+                        CAST(AVG(CAST(h.sleep_quality_score AS float)) AS float) AS HwMeanSleepQualityScore,
+                        CAST(AVG(CAST(h.energy_level_score AS float)) AS float) AS HwMeanEnergyLevelScore
+                    FROM dbo.health_wellbeing_records h
+                    GROUP BY h.resident_id
+                ),
+                edu_earliest AS (
+                    SELECT
+                        x.resident_id AS ResidentId,
+                        CAST(x.progress_percent AS float) AS EduEarliestProgress,
+                        CAST(x.attendance_rate AS float) AS EduEarliestAttendanceRate,
+                        CAST(x.progress_percent AS float) AS CurrentProgress
+                    FROM (
+                        SELECT
+                            er.resident_id,
+                            er.progress_percent,
+                            er.attendance_rate,
+                            ROW_NUMBER() OVER (
+                                PARTITION BY er.resident_id
+                                ORDER BY er.record_date ASC, er.education_record_id ASC
+                            ) AS rn
+                        FROM dbo.education_records er
+                    ) x
+                    WHERE x.rn = 1
+                ),
+                edu_latest AS (
+                    SELECT
+                        x.resident_id AS ResidentId,
+                        CAST(x.progress_percent AS float) AS CurrentProgressLatest
+                    FROM (
+                        SELECT
+                            er.resident_id,
+                            er.progress_percent,
+                            ROW_NUMBER() OVER (
+                                PARTITION BY er.resident_id
+                                ORDER BY er.record_date DESC, er.education_record_id DESC
+                            ) AS rn
+                        FROM dbo.education_records er
+                    ) x
+                    WHERE x.rn = 1
+                ),
+                incidents AS (
+                    SELECT
+                        i.resident_id AS ResidentId,
+                        CAST(COUNT(1) AS float) AS NIncidents,
+                        CAST(AVG(CASE WHEN LOWER(ISNULL(i.incident_type, '')) LIKE '%high%' THEN 1.0 ELSE 0.0 END) AS float) AS IncidentHighRate,
+                        CAST(AVG(CASE WHEN ISNULL(i.resolved, 0) = 0 THEN 1.0 ELSE 0.0 END) AS float) AS IncidentUnresolvedRate
+                    FROM dbo.incident_reports i
+                    GROUP BY i.resident_id
+                ),
+                visitations AS (
+                    SELECT
+                        hv.resident_id AS ResidentId,
+                        CAST(COUNT(1) AS int) AS NHomeVisitations,
+                        CAST(AVG(CASE WHEN ISNULL(hv.safety_concerns_noted, 0) = 1 THEN 1.0 ELSE 0.0 END) AS float) AS SafetyConcernRate,
+                        CAST(AVG(CASE WHEN ISNULL(hv.follow_up_needed, 0) = 1 THEN 1.0 ELSE 0.0 END) AS float) AS FollowupNeededRate
+                    FROM dbo.home_visitations hv
+                    GROUP BY hv.resident_id
+                ),
+                process_sessions AS (
+                    SELECT
+                        pr.resident_id AS ResidentId,
+                        CAST(COUNT(1) AS float) AS NProcessSessions
+                    FROM dbo.process_recordings pr
+                    GROUP BY pr.resident_id
+                ),
+                interventions AS (
+                    SELECT
+                        ip.resident_id AS ResidentId,
+                        CAST(COUNT(1) AS int) AS NInterventionPlans
+                    FROM dbo.intervention_plans ip
+                    GROUP BY ip.resident_id
+                )
+                SELECT
+                    b.ResidentId,
+                    b.ResidentCode,
+                    b.PresentAgeYears,
+                    b.LengthStayYears,
+                    b.AgeUponAdmissionYears,
+                    b.SubCatOrphaned,
+                    b.SubCatTrafficked,
+                    b.SubCatChildLabor,
+                    b.SubCatPhysicalAbuse,
+                    b.SubCatSexualAbuse,
+                    b.SubCatOsaec,
+                    b.SubCatCicl,
+                    b.SubCatAtRisk,
+                    b.SubCatStreetChild,
+                    b.SubCatChildWithHiv,
+                    b.IsPwd,
+                    b.HasSpecialNeeds,
+                    b.FamilyIs4ps,
+                    b.FamilySoloParent,
+                    b.FamilyIndigenous,
+                    b.FamilyParentPwd,
+                    b.FamilyInformalSettler,
+                    hw.HwMeanGeneralHealthScore,
+                    hw.HwMeanNutritionScore,
+                    hw.HwMeanSleepQualityScore,
+                    hw.HwMeanEnergyLevelScore,
+                    CAST(NULL AS float) AS HwMeanHeightCm,
+                    CAST(NULL AS float) AS HwMeanWeightKg,
+                    CAST(NULL AS float) AS HwMeanBmi,
+                    CAST(NULL AS float) AS HwRateMedicalCheckupDone,
+                    CAST(NULL AS float) AS HwRateDentalCheckupDone,
+                    CAST(NULL AS float) AS HwRatePsychologicalCheckupDone,
+                    iv.NInterventionPlans,
+                    vs.NHomeVisitations,
+                    ee.EduEarliestProgress,
+                    ee.EduEarliestAttendanceRate,
+                    b.CaseStatus,
+                    b.Sex,
+                    b.BirthStatus,
+                    b.CaseCategory,
+                    b.ReferralSource,
+                    b.AssignedSocialWorker,
+                    b.ReintegrationType,
+                    b.ReintegrationStatus,
+                    b.InitialRiskLevel,
+                    b.CurrentRiskLevel,
+                    b.PwdType,
+                    b.SpecialNeedsDiagnosis,
+                    CAST(NULL AS varchar(100)) AS EduEarliestEducationLevel,
+                    b.Region,
+                    b.Province,
+                    b.SafehouseStatus,
+                    ISNULL(el.CurrentProgressLatest, ee.CurrentProgress) AS CurrentProgress,
+                    b.DaysSinceAdmission,
+                    ic.NIncidents,
+                    ic.IncidentHighRate,
+                    ic.IncidentUnresolvedRate,
+                    vs.SafetyConcernRate,
+                    vs.FollowupNeededRate,
+                    ps.NProcessSessions,
+                    CAST(NULL AS float) AS ConcernsFlaggedRate,
+                    CAST(NULL AS float) AS ReferralMadeRate,
+                    b.OccupancyRatio,
+                    CAST(NULL AS varchar(100)) AS EduEducationLevel
+                FROM base_residents b
+                LEFT JOIN hw ON hw.ResidentId = b.ResidentId
+                LEFT JOIN edu_earliest ee ON ee.ResidentId = b.ResidentId
+                LEFT JOIN edu_latest el ON el.ResidentId = b.ResidentId
+                LEFT JOIN incidents ic ON ic.ResidentId = b.ResidentId
+                LEFT JOIN visitations vs ON vs.ResidentId = b.ResidentId
+                LEFT JOIN process_sessions ps ON ps.ResidentId = b.ResidentId
+                LEFT JOIN interventions iv ON iv.ResidentId = b.ResidentId
+                ORDER BY b.ResidentId
+                """
+            )
+            .ToListAsync(ct);
+
+        var result = rows.Select(r => new AdminResidentMlFeaturesDto
+            {
+                ResidentId = r.ResidentId.ToString(CultureInfo.InvariantCulture),
+                ResidentCode = r.ResidentCode ?? string.Empty,
+                PresentAgeYears = r.PresentAgeYears,
+                LengthStayYears = r.LengthStayYears,
+                AgeUponAdmissionYears = r.AgeUponAdmissionYears,
+                SubCatOrphaned = r.SubCatOrphaned,
+                SubCatTrafficked = r.SubCatTrafficked,
+                SubCatChildLabor = r.SubCatChildLabor,
+                SubCatPhysicalAbuse = r.SubCatPhysicalAbuse,
+                SubCatSexualAbuse = r.SubCatSexualAbuse,
+                SubCatOsaec = r.SubCatOsaec,
+                SubCatCicl = r.SubCatCicl,
+                SubCatAtRisk = r.SubCatAtRisk,
+                SubCatStreetChild = r.SubCatStreetChild,
+                SubCatChildWithHiv = r.SubCatChildWithHiv,
+                IsPwd = r.IsPwd,
+                HasSpecialNeeds = r.HasSpecialNeeds,
+                FamilyIs4ps = r.FamilyIs4ps,
+                FamilySoloParent = r.FamilySoloParent,
+                FamilyIndigenous = r.FamilyIndigenous,
+                FamilyParentPwd = r.FamilyParentPwd,
+                FamilyInformalSettler = r.FamilyInformalSettler,
+                HwMeanGeneralHealthScore = r.HwMeanGeneralHealthScore,
+                HwMeanNutritionScore = r.HwMeanNutritionScore,
+                HwMeanSleepQualityScore = r.HwMeanSleepQualityScore,
+                HwMeanEnergyLevelScore = r.HwMeanEnergyLevelScore,
+                HwMeanHeightCm = r.HwMeanHeightCm,
+                HwMeanWeightKg = r.HwMeanWeightKg,
+                HwMeanBmi = r.HwMeanBmi,
+                HwRateMedicalCheckupDone = r.HwRateMedicalCheckupDone,
+                HwRateDentalCheckupDone = r.HwRateDentalCheckupDone,
+                HwRatePsychologicalCheckupDone = r.HwRatePsychologicalCheckupDone,
+                NInterventionPlans = r.NInterventionPlans,
+                NHomeVisitations = r.NHomeVisitations,
+                EduEarliestProgress = r.EduEarliestProgress,
+                EduEarliestAttendanceRate = r.EduEarliestAttendanceRate,
+                CaseStatus = r.CaseStatus,
+                Sex = r.Sex,
+                BirthStatus = r.BirthStatus,
+                CaseCategory = r.CaseCategory,
+                ReferralSource = r.ReferralSource,
+                AssignedSocialWorker = r.AssignedSocialWorker,
+                ReintegrationType = r.ReintegrationType,
+                ReintegrationStatus = r.ReintegrationStatus,
+                InitialRiskLevel = r.InitialRiskLevel,
+                CurrentRiskLevel = r.CurrentRiskLevel,
+                PwdType = r.PwdType,
+                SpecialNeedsDiagnosis = r.SpecialNeedsDiagnosis,
+                EduEarliestEducationLevel = r.EduEarliestEducationLevel,
+                Region = r.Region,
+                Province = r.Province,
+                Status = r.SafehouseStatus,
+                CurrentProgress = r.CurrentProgress,
+                DaysSinceAdmission = r.DaysSinceAdmission,
+                NIncidents = r.NIncidents,
+                IncidentHighRate = r.IncidentHighRate,
+                IncidentUnresolvedRate = r.IncidentUnresolvedRate,
+                SafetyConcernRate = r.SafetyConcernRate,
+                FollowupNeededRate = r.FollowupNeededRate,
+                NProcessSessions = r.NProcessSessions,
+                ConcernsFlaggedRate = r.ConcernsFlaggedRate,
+                ReferralMadeRate = r.ReferralMadeRate,
+                OccupancyRatio = r.OccupancyRatio,
+                EduEducationLevel = r.EduEducationLevel,
+            })
+            .ToList();
+
+        return result;
+    }
+
+    /// <summary>Aggregated ML predictions for the reports dashboard (single round-trip).</summary>
+    [HttpGet("ml/reports-aggregate")]
+    public async Task<ActionResult<ReportsMlAggregateDto>> GetMlReportsAggregate(
+        [FromServices] MlClientService ml,
+        CancellationToken ct
+    )
+    {
+        const int maxRows = 2000;
+
+        List<AdminDonorMlFeaturesDto> donors = [];
+        List<AdminResidentMlFeaturesDto> residents = [];
+
+        try
+        {
+            donors = await FetchDonorMlFeaturesAsync(maxRows, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to fetch donor ML features for reports aggregate.");
+        }
+
+        try
+        {
+            residents = await FetchResidentMlFeaturesAsync(maxRows, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to fetch resident ML features for reports aggregate.");
+        }
+
+        var agg = new ReportsMlAggregateDto
+        {
+            DonorTotal = donors.Count,
+            ResidentTotal = residents.Count,
+        };
+
+        if (donors.Count == 0 && residents.Count == 0)
+            return Ok(agg);
+
+        try
+        {
+            // ── Donor retention batch ─────────────────────────────────────────
+            Task<JsonElement>? retentionTask = null;
+            Task<JsonElement>? growthTask = null;
+            Task<JsonElement>? progressTask = null;
+            Task<JsonElement>? trajectoryTask = null;
+
+            if (donors.Count > 0)
+            {
+                var retentionBody = JsonSerializer.SerializeToElement(
+                    donors
+                        .Select(d => new
+                        {
+                            frequency = d.Frequency,
+                            avg_monetary_value = d.AvgMonetaryValue,
+                            social_referral_count = d.SocialReferralCount,
+                            is_recurring_donor = d.IsRecurringDonor,
+                            top_program_interest = d.TopProgramInterest,
+                        })
+                        .ToArray(),
+                    MlJsonOptions
+                );
+                var growthBody = JsonSerializer.SerializeToElement(
+                    donors
+                        .Select(d => new
+                        {
+                            recency_days = d.RecencyDays,
+                            frequency = d.Frequency,
+                            social_referral_count = d.SocialReferralCount,
+                            is_recurring_donor = d.IsRecurringDonor,
+                            donor_tenure_days = d.DonorTenureDays,
+                            top_program_interest = d.TopProgramInterest,
+                            supporter_type = d.SupporterType,
+                            relationship_type = d.RelationshipType,
+                            region = d.Region,
+                            acquisition_channel = d.AcquisitionChannel,
+                            status = d.Status,
+                        })
+                        .ToArray(),
+                    MlJsonOptions
+                );
+                retentionTask = ml.BatchPredictAsync("retention", retentionBody, ct);
+                growthTask = ml.BatchPredictAsync("growth", growthBody, ct);
+            }
+
+            if (residents.Count > 0)
+            {
+                // girls-progress uses [JsonPropertyName] attributes on the DTO
+                var progressBody = JsonSerializer.SerializeToElement(residents.ToArray());
+                var trajectoryBody = JsonSerializer.SerializeToElement(
+                    residents
+                        .Select(r => new
+                        {
+                            current_progress = r.CurrentProgress,
+                            days_since_admission = r.DaysSinceAdmission,
+                            present_age_years = r.PresentAgeYears,
+                            age_upon_admission_years = r.AgeUponAdmissionYears,
+                            has_special_needs = r.HasSpecialNeeds,
+                            family_parent_pwd = r.FamilyParentPwd,
+                            hw_mean_nutrition_score = r.HwMeanNutritionScore,
+                            hw_mean_energy_level_score = r.HwMeanEnergyLevelScore,
+                            hw_mean_sleep_quality_score = r.HwMeanSleepQualityScore,
+                            hw_mean_general_health_score = r.HwMeanGeneralHealthScore,
+                            hw_mean_bmi = r.HwMeanBmi,
+                            hw_rate_psychological_checkup_done = r.HwRatePsychologicalCheckupDone,
+                            n_incidents = r.NIncidents,
+                            incident_high_rate = r.IncidentHighRate,
+                            incident_unresolved_rate = r.IncidentUnresolvedRate,
+                            n_home_visitations = r.NHomeVisitations,
+                            safety_concern_rate = r.SafetyConcernRate,
+                            followup_needed_rate = r.FollowupNeededRate,
+                            n_process_sessions = r.NProcessSessions,
+                            concerns_flagged_rate = r.ConcernsFlaggedRate,
+                            referral_made_rate = r.ReferralMadeRate,
+                            n_intervention_plans = r.NInterventionPlans,
+                            occupancy_ratio = r.OccupancyRatio,
+                            case_status = r.CaseStatus,
+                            case_category = r.CaseCategory,
+                            initial_risk_level = r.InitialRiskLevel,
+                            current_risk_level = r.CurrentRiskLevel,
+                            referral_source = r.ReferralSource,
+                            reintegration_status = r.ReintegrationStatus,
+                            edu_education_level = r.EduEducationLevel,
+                            region = r.Region,
+                            province = r.Province,
+                        })
+                        .ToArray(),
+                    MlJsonOptions
+                );
+                progressTask = ml.BatchPredictAsync("girls-progress", progressBody, ct);
+                trajectoryTask = ml.BatchPredictAsync("girls-trajectory", trajectoryBody, ct);
+            }
+
+            await Task.WhenAll(
+                retentionTask ?? Task.CompletedTask,
+                growthTask ?? Task.CompletedTask,
+                progressTask ?? Task.CompletedTask,
+                trajectoryTask ?? Task.CompletedTask
+            );
+
+            // ── Aggregate donor predictions ───────────────────────────────────
+            if (retentionTask is not null)
+            {
+                var retentionResults = await retentionTask;
+                var lapseCount = retentionResults
+                    .EnumerateArray()
+                    .Count(p => p.GetProperty("predicted_class").GetInt32() == 0);
+                agg.DonorLapsePct = donors.Count > 0 ? (double)lapseCount / donors.Count * 100 : 0;
+            }
+
+            if (growthTask is not null)
+            {
+                var growthResults = await growthTask;
+                var totalGiving = growthResults
+                    .EnumerateArray()
+                    .Sum(p => p.GetProperty("predicted_total_monetary_value").GetDouble());
+                agg.DonorAvgPredictedGiving = donors.Count > 0 ? totalGiving / donors.Count : 0;
+            }
+
+            // ── Aggregate resident predictions ────────────────────────────────
+            if (progressTask is not null)
+            {
+                var progressResults = await progressTask;
+                var totalProgress = progressResults
+                    .EnumerateArray()
+                    .Sum(p => p.GetProperty("predicted_mean_progress").GetDouble());
+                agg.ResidentAvgProgress = residents.Count > 0 ? totalProgress / residents.Count : 0;
+            }
+
+            if (trajectoryTask is not null)
+            {
+                var trajectoryResults = await trajectoryTask;
+                agg.ResidentAtRiskCount = trajectoryResults
+                    .EnumerateArray()
+                    .Count(p =>
+                        p.TryGetProperty("risk_label", out var lbl)
+                        && lbl.ValueKind == JsonValueKind.String
+                        && lbl.GetString() == "At Risk"
+                    );
+            }
+
+            agg.MlOffline = false;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogWarning(ex, "ML service unreachable during reports aggregate.");
+            agg.MlOffline = true;
+        }
+        catch (MlServiceException ex)
+        {
+            _logger.LogWarning(
+                "ML service error {Status} during reports aggregate: {Body}",
+                ex.StatusCode,
+                ex.ResponseBody
+            );
+            agg.MlOffline = true;
+        }
+        catch (OperationCanceledException ex)
+        {
+            _logger.LogWarning(ex, "ML service timed out during reports aggregate.");
+            agg.MlOffline = true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Unexpected error from ML service during reports aggregate.");
+            agg.MlOffline = true;
+        }
+
+        return Ok(agg);
     }
 
     /// <summary>Full caseload rows for <c>/caseload</c> (read-only). Does not expose restricted notes.</summary>
@@ -969,6 +1698,16 @@ public class AdminController : ControllerBase
         public string Notes { get; set; } = string.Empty;
     }
 
+    private sealed class SafehouseRow
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Location { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public int Capacity { get; set; }
+        public int CurrentOccupancy { get; set; }
+    }
+
     private sealed class ResidentRow
     {
         public string Id { get; set; } = string.Empty;
@@ -976,5 +1715,100 @@ public class AdminController : ControllerBase
         public string CaseStatus { get; set; } = string.Empty;
         public string ResidentCode { get; set; } = string.Empty;
         public string RiskLevel { get; set; } = string.Empty;
+    }
+
+    private sealed class ResidentMlRow
+    {
+        public int ResidentId { get; set; }
+        public string? ResidentCode { get; set; }
+        public double? PresentAgeYears { get; set; }
+        public double? LengthStayYears { get; set; }
+        public double? AgeUponAdmissionYears { get; set; }
+        public int? SubCatOrphaned { get; set; }
+        public int? SubCatTrafficked { get; set; }
+        public int? SubCatChildLabor { get; set; }
+        public int? SubCatPhysicalAbuse { get; set; }
+        public int? SubCatSexualAbuse { get; set; }
+        public int? SubCatOsaec { get; set; }
+        public int? SubCatCicl { get; set; }
+        public int? SubCatAtRisk { get; set; }
+        public int? SubCatStreetChild { get; set; }
+        public int? SubCatChildWithHiv { get; set; }
+        public int? IsPwd { get; set; }
+        public int? HasSpecialNeeds { get; set; }
+        public int? FamilyIs4ps { get; set; }
+        public int? FamilySoloParent { get; set; }
+        public int? FamilyIndigenous { get; set; }
+        public int? FamilyParentPwd { get; set; }
+        public int? FamilyInformalSettler { get; set; }
+        public double? HwMeanGeneralHealthScore { get; set; }
+        public double? HwMeanNutritionScore { get; set; }
+        public double? HwMeanSleepQualityScore { get; set; }
+        public double? HwMeanEnergyLevelScore { get; set; }
+        public double? HwMeanHeightCm { get; set; }
+        public double? HwMeanWeightKg { get; set; }
+        public double? HwMeanBmi { get; set; }
+        public double? HwRateMedicalCheckupDone { get; set; }
+        public double? HwRateDentalCheckupDone { get; set; }
+        public double? HwRatePsychologicalCheckupDone { get; set; }
+        public int? NInterventionPlans { get; set; }
+        public int? NHomeVisitations { get; set; }
+        public double? EduEarliestProgress { get; set; }
+        public double? EduEarliestAttendanceRate { get; set; }
+        public string? CaseStatus { get; set; }
+        public string? Sex { get; set; }
+        public string? BirthStatus { get; set; }
+        public string? CaseCategory { get; set; }
+        public string? ReferralSource { get; set; }
+        public string? AssignedSocialWorker { get; set; }
+        public string? ReintegrationType { get; set; }
+        public string? ReintegrationStatus { get; set; }
+        public string? InitialRiskLevel { get; set; }
+        public string? CurrentRiskLevel { get; set; }
+        public string? PwdType { get; set; }
+        public string? SpecialNeedsDiagnosis { get; set; }
+        public string? EduEarliestEducationLevel { get; set; }
+        public string? Region { get; set; }
+        public string? Province { get; set; }
+        public string? SafehouseStatus { get; set; }
+        public double? CurrentProgress { get; set; }
+        public double? DaysSinceAdmission { get; set; }
+        public double? NIncidents { get; set; }
+        public double? IncidentHighRate { get; set; }
+        public double? IncidentUnresolvedRate { get; set; }
+        public double? SafetyConcernRate { get; set; }
+        public double? FollowupNeededRate { get; set; }
+        public double? NProcessSessions { get; set; }
+        public double? ConcernsFlaggedRate { get; set; }
+        public double? ReferralMadeRate { get; set; }
+        public double? OccupancyRatio { get; set; }
+        public string? EduEducationLevel { get; set; }
+    }
+
+    private static string ResolveSupporterName(
+        string? displayName,
+        string? organizationName,
+        string? firstName,
+        string? lastName,
+        int supporterId
+    )
+    {
+        if (!string.IsNullOrWhiteSpace(displayName))
+        {
+            return displayName.Trim();
+        }
+
+        var fullName = $"{firstName?.Trim()} {lastName?.Trim()}".Trim();
+        if (!string.IsNullOrWhiteSpace(fullName))
+        {
+            return fullName;
+        }
+
+        if (!string.IsNullOrWhiteSpace(organizationName))
+        {
+            return organizationName.Trim();
+        }
+
+        return $"Supporter {supporterId.ToString(CultureInfo.InvariantCulture)}";
     }
 }

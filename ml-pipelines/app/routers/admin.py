@@ -12,10 +12,16 @@ Auth: FastAPI is internal-only. All external callers must go through ASP.NET
 
 from __future__ import annotations
 
+import sys
 import threading
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request
+
+# Add project root to sys.path so "scripts.*" modules can be imported
+_project_root = Path(__file__).resolve().parent.parent.parent
+if str(_project_root) not in sys.path:
+    sys.path.insert(0, str(_project_root))
 
 from app.config import (
     girls_education_trajectory_pipeline_path,
@@ -107,17 +113,24 @@ def retrain_model(model: str, request: Request):
 
     lock: threading.Lock = getattr(request.app.state, "retraining_lock", None)
     if lock is None:
-        raise HTTPException(status_code=503, detail="Retraining lock not initialised. Restart the service.")
+        raise HTTPException(
+            status_code=503,
+            detail="Retraining lock not initialised. Restart the service.",
+        )
 
     acquired = lock.acquire(blocking=False)
     if not acquired:
-        raise HTTPException(status_code=409, detail="A retrain is already in progress. Try again shortly.")
+        raise HTTPException(
+            status_code=409,
+            detail="A retrain is already in progress. Try again shortly.",
+        )
 
     try:
         cfg = _MODEL_CONFIG[model]
 
         # Dynamically import the training script module
         import importlib
+
         train_module = importlib.import_module(cfg["script"])
 
         data_root = _find_data_root()

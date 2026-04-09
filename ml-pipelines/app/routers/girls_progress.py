@@ -19,14 +19,25 @@ def girls_progress_predict(request: Request, body: GirlsProgressFeatures):
             status_code=503,
             detail="Girls progress pipeline not loaded. Run girls_progressing.ipynb Phase 6 or set GIRLS_PROGRESS_PIPELINE_PATH.",
         )
-
-    row = body.model_dump()
     try:
-        pred = predict_girls_progress(pipeline, row)
+        pred = predict_girls_progress(pipeline, body.model_dump())
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    return GirlsProgressPrediction(predicted_mean_progress=pred, features_used=GIRLS_FEATURE_COLUMNS)
 
-    return GirlsProgressPrediction(
-        predicted_mean_progress=pred,
-        features_used=GIRLS_FEATURE_COLUMNS,
-    )
+
+@router.post("/batch/predict", response_model=list[GirlsProgressPrediction])
+def girls_progress_batch_predict(request: Request, batch: list[GirlsProgressFeatures]):
+    pipeline = getattr(request.app.state, "girls_progress_pipeline", None)
+    if pipeline is None:
+        raise HTTPException(status_code=503, detail="Girls progress pipeline not loaded.")
+    try:
+        return [
+            GirlsProgressPrediction(
+                predicted_mean_progress=predict_girls_progress(pipeline, row.model_dump()),
+                features_used=GIRLS_FEATURE_COLUMNS,
+            )
+            for row in batch
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e

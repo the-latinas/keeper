@@ -2,6 +2,31 @@ using System.Text.Json.Serialization;
 
 namespace api.DTOs;
 
+/// <summary>Aggregated ML predictions for the reports page dashboard.</summary>
+public class ReportsMlAggregateDto
+{
+    [JsonPropertyName("donor_lapse_pct")]
+    public double DonorLapsePct { get; set; }
+
+    [JsonPropertyName("donor_avg_predicted_giving")]
+    public double DonorAvgPredictedGiving { get; set; }
+
+    [JsonPropertyName("donor_total")]
+    public int DonorTotal { get; set; }
+
+    [JsonPropertyName("resident_avg_progress")]
+    public double ResidentAvgProgress { get; set; }
+
+    [JsonPropertyName("resident_at_risk_count")]
+    public int ResidentAtRiskCount { get; set; }
+
+    [JsonPropertyName("resident_total")]
+    public int ResidentTotal { get; set; }
+
+    [JsonPropertyName("ml_offline")]
+    public bool MlOffline { get; set; }
+}
+
 /// <summary>Resident row for admin dashboard (snake_case JSON to match the web app).</summary>
 public class AdminResidentDto
 {

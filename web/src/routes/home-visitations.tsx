@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { ChevronUp, Clock, Home, Plus, Users } from "lucide-react";
+import { ChevronUp, Clock, Home, Pencil, Plus, Trash2, Users } from "lucide-react";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import { apiGetJson, getApiBaseUrl, type AuthMeResponse } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -48,12 +48,17 @@ interface HomeVisit {
 	id: number;
 	residentId: number;
 	visitDate: string;
-	staffName: string;
+	socialWorker: string;
 	visitType: VisitType;
-	homeEnvironmentObservations: string;
-	familyCooperation: FamilyCooperation;
-	safetyConcerns: string;
-	followUpActions: string;
+	locationVisited: string;
+	familyMembersPresent: string;
+	purpose: string;
+	observations: string;
+	familyCooperationLevel: FamilyCooperation;
+	safetyConcernsNoted: boolean;
+	followUpNeeded: boolean;
+	followUpNotes: string;
+	visitOutcome: string;
 }
 
 interface CaseConference {
@@ -77,12 +82,14 @@ type HomeVisitApi = {
   id: number;
   resident_id: number;
   visit_date: string;
-  staff_name: string;
+  social_worker: string;
   visit_type: string;
-  home_environment_observations: string;
-  family_cooperation: string;
-  safety_concerns: string;
-  follow_up_actions: string;
+  observations: string;
+  family_cooperation_level: string;
+  safety_concerns_noted: boolean;
+  follow_up_needed: boolean;
+  follow_up_notes: string;
+  visit_outcome: string;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -140,12 +147,17 @@ const CONFERENCE_TYPE_COLORS: Record<ConferenceType, string> = {
 
 const EMPTY_VISIT = {
 	visitDate: "",
-	staffName: "",
+	socialWorker: "",
 	visitType: "Routine Follow-up" as VisitType,
-	homeEnvironmentObservations: "",
-	familyCooperation: "Cooperative" as FamilyCooperation,
-	safetyConcerns: "",
-	followUpActions: "",
+	locationVisited: "",
+	familyMembersPresent: "",
+	purpose: "",
+	observations: "",
+	familyCooperationLevel: "Cooperative" as FamilyCooperation,
+	safetyConcernsNoted: false,
+	followUpNeeded: false,
+	followUpNotes: "",
+	visitOutcome: "",
 };
 
 const EMPTY_CONFERENCE = {
@@ -265,6 +277,8 @@ function HomeVisitationsPage() {
 
   const [showVisitForm, setShowVisitForm] = useState(false);
   const [visitForm, setVisitForm] = useState(EMPTY_VISIT);
+  const [editingVisitId, setEditingVisitId] = useState<number | null>(null);
+  const [editVisitForm, setEditVisitForm] = useState(EMPTY_VISIT);
 
   const [showConferenceForm, setShowConferenceForm] = useState(false);
   const [conferenceForm, setConferenceForm] = useState(EMPTY_CONFERENCE);
@@ -285,6 +299,7 @@ function HomeVisitationsPage() {
 
   const { data: residents = [] } = useQuery<Resident[]>({
     queryKey: ["residents"],
+    staleTime: 60_000,
     queryFn: async () => {
       const rows = await apiGetJson<ResidentApi[]>("/api/admin-data/residents");
       return rows.map((r) => ({
@@ -297,6 +312,7 @@ function HomeVisitationsPage() {
 
   const { data: visits = [] } = useQuery<HomeVisit[]>({
     queryKey: ["home-visitations"],
+    staleTime: 60_000,
     queryFn: async () => {
       const rows = await apiGetJson<HomeVisitApi[]>("/api/admin-data/home-visitations");
       const normalizeVisitType = (value: string): VisitType => {
@@ -311,12 +327,17 @@ function HomeVisitationsPage() {
         id: v.id,
         residentId: v.resident_id,
         visitDate: v.visit_date,
-        staffName: v.staff_name,
+        socialWorker: v.social_worker,
         visitType: normalizeVisitType(v.visit_type),
-        homeEnvironmentObservations: v.home_environment_observations,
-        familyCooperation: normalizeCooperation(v.family_cooperation),
-        safetyConcerns: v.safety_concerns,
-        followUpActions: v.follow_up_actions,
+        locationVisited: "",
+        familyMembersPresent: "",
+        purpose: "",
+        observations: v.observations,
+        familyCooperationLevel: normalizeCooperation(v.family_cooperation_level),
+        safetyConcernsNoted: v.safety_concerns_noted,
+        followUpNeeded: v.follow_up_needed,
+        followUpNotes: v.follow_up_notes,
+        visitOutcome: v.visit_outcome,
       }));
     },
   });
@@ -325,12 +346,17 @@ function HomeVisitationsPage() {
     mutationFn: async (payload: {
       resident_id: number;
       visit_date: string;
-      staff_name: string;
+      social_worker: string;
       visit_type: VisitType;
-      home_environment_observations: string;
-      family_cooperation: FamilyCooperation;
-      safety_concerns: string;
-      follow_up_actions: string;
+      location_visited: string;
+      family_members_present: string;
+      purpose: string;
+      observations: string;
+      family_cooperation_level: FamilyCooperation;
+      safety_concerns_noted: boolean;
+      follow_up_needed: boolean;
+      follow_up_notes: string;
+      visit_outcome: string;
     }) => {
       const apiBaseUrl = getApiBaseUrl();
       if (!apiBaseUrl) throw new Error("API base URL not configured");
@@ -341,6 +367,50 @@ function HomeVisitationsPage() {
         body: JSON.stringify(payload),
       });
       if (!response.ok) throw new Error("Failed to save visit");
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["home-visitations"] });
+    },
+  });
+
+  const updateVisitMutation = useMutation({
+    mutationFn: async ({ id, payload }: { id: number; payload: typeof EMPTY_VISIT }) => {
+      const apiBaseUrl = getApiBaseUrl();
+      if (!apiBaseUrl) throw new Error("API base URL not configured");
+      const response = await fetch(`${apiBaseUrl}/api/admin-data/home-visitations/${id}`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          visit_date: payload.visitDate,
+          social_worker: payload.socialWorker,
+          visit_type: payload.visitType,
+          observations: payload.observations,
+          family_cooperation_level: payload.familyCooperationLevel,
+          safety_concerns_noted: payload.safetyConcernsNoted,
+          follow_up_needed: payload.followUpNeeded,
+          follow_up_notes: payload.followUpNotes,
+          visit_outcome: payload.visitOutcome,
+        }),
+      });
+      if (!response.ok) throw new Error("Failed to update visit");
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["home-visitations"] });
+      setEditingVisitId(null);
+      setEditVisitForm(EMPTY_VISIT);
+    },
+  });
+
+  const deleteVisitMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const apiBaseUrl = getApiBaseUrl();
+      if (!apiBaseUrl) throw new Error("API base URL not configured");
+      const response = await fetch(`${apiBaseUrl}/api/admin-data/home-visitations/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to delete visit");
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["home-visitations"] });
@@ -386,6 +456,38 @@ function HomeVisitationsPage() {
     setShowConferenceForm(false);
     setVisitForm(EMPTY_VISIT);
     setConferenceForm(EMPTY_CONFERENCE);
+    setEditingVisitId(null);
+    setEditVisitForm(EMPTY_VISIT);
+  }
+
+  function handleEditVisit(v: HomeVisit) {
+    setEditingVisitId(v.id);
+    setEditVisitForm({
+      visitDate: v.visitDate,
+      socialWorker: v.socialWorker,
+      visitType: v.visitType,
+      locationVisited: v.locationVisited,
+      familyMembersPresent: v.familyMembersPresent,
+      purpose: v.purpose,
+      observations: v.observations,
+      familyCooperationLevel: v.familyCooperationLevel,
+      safetyConcernsNoted: v.safetyConcernsNoted,
+      followUpNeeded: v.followUpNeeded,
+      followUpNotes: v.followUpNotes,
+      visitOutcome: v.visitOutcome,
+    });
+    setShowVisitForm(false);
+  }
+
+  async function handleEditVisitSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (editingVisitId === null) return;
+    await updateVisitMutation.mutateAsync({ id: editingVisitId, payload: editVisitForm });
+  }
+
+  async function handleDeleteVisit(id: number) {
+    if (!window.confirm("Delete this home visit record? This cannot be undone.")) return;
+    await deleteVisitMutation.mutateAsync(id);
   }
 
   async function handleVisitSubmit(e: React.FormEvent) {
@@ -394,12 +496,17 @@ function HomeVisitationsPage() {
     await createVisitMutation.mutateAsync({
       resident_id: selectedResident.id,
       visit_date: visitForm.visitDate,
-      staff_name: visitForm.staffName,
+      social_worker: visitForm.socialWorker,
       visit_type: visitForm.visitType,
-      home_environment_observations: visitForm.homeEnvironmentObservations,
-      family_cooperation: visitForm.familyCooperation,
-      safety_concerns: visitForm.safetyConcerns,
-      follow_up_actions: visitForm.followUpActions,
+      location_visited: visitForm.locationVisited,
+      family_members_present: visitForm.familyMembersPresent,
+      purpose: visitForm.purpose,
+      observations: visitForm.observations,
+      family_cooperation_level: visitForm.familyCooperationLevel,
+      safety_concerns_noted: visitForm.safetyConcernsNoted,
+      follow_up_needed: visitForm.followUpNeeded,
+      follow_up_notes: visitForm.followUpNotes,
+      visit_outcome: visitForm.visitOutcome,
     });
     setVisitForm(EMPTY_VISIT);
     setShowVisitForm(false);
@@ -454,14 +561,14 @@ function HomeVisitationsPage() {
             </div>
             <div className="space-y-1.5">
               <Label className="font-body text-sm font-medium text-foreground">
-                Staff Conducting Visit <span className="text-red-500">*</span>
+                Social Worker <span className="text-red-500">*</span>
               </Label>
               <Input
                 required
                 placeholder="Full name"
-                value={visitForm.staffName}
+                value={visitForm.socialWorker}
                 onChange={(e) =>
-                  setVisitForm((f) => ({ ...f, staffName: e.target.value }))
+                  setVisitForm((f) => ({ ...f, socialWorker: e.target.value }))
                 }
               />
             </div>
@@ -491,16 +598,44 @@ function HomeVisitationsPage() {
             </div>
             <div className="space-y-1.5">
               <Label className="font-body text-sm font-medium text-foreground">
+                Location Visited <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                required
+                placeholder="e.g. Family home, Foster home, Barangay hall"
+                value={visitForm.locationVisited}
+                onChange={(e) =>
+                  setVisitForm((f) => ({ ...f, locationVisited: e.target.value }))
+                }
+              />
+            </div>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="font-body text-sm font-medium text-foreground">
+                Family Members Present
+              </Label>
+              <Input
+                placeholder="e.g. Mother, Father, Sibling"
+                value={visitForm.familyMembersPresent}
+                onChange={(e) =>
+                  setVisitForm((f) => ({ ...f, familyMembersPresent: e.target.value }))
+                }
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="font-body text-sm font-medium text-foreground">
                 Family Cooperation Level <span className="text-red-500">*</span>
               </Label>
               <select
                 required
                 aria-label="Family cooperation level"
-                value={visitForm.familyCooperation}
+                value={visitForm.familyCooperationLevel}
                 onChange={(e) =>
                   setVisitForm((f) => ({
                     ...f,
-                    familyCooperation: e.target.value as FamilyCooperation,
+                    familyCooperationLevel: e.target.value as FamilyCooperation,
                   }))
                 }
                 className={selectClass()}
@@ -514,50 +649,90 @@ function HomeVisitationsPage() {
 
           <div className="space-y-1.5">
             <Label className="font-body text-sm font-medium text-foreground">
-              Home Environment Observations{" "}
-              <span className="text-red-500">*</span>
+              Purpose <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              required
+              placeholder="e.g. Assess reintegration readiness, Monitor post-placement"
+              value={visitForm.purpose}
+              onChange={(e) =>
+                setVisitForm((f) => ({ ...f, purpose: e.target.value }))
+              }
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="font-body text-sm font-medium text-foreground">
+              Observations <span className="text-red-500">*</span>
             </Label>
             <textarea
               required
               rows={3}
-              placeholder="Describe the physical environment, living conditions, and any notable observations…"
-              value={visitForm.homeEnvironmentObservations}
+              placeholder="Describe the home environment, living conditions, and any notable observations…"
+              value={visitForm.observations}
               onChange={(e) =>
-                setVisitForm((f) => ({
-                  ...f,
-                  homeEnvironmentObservations: e.target.value,
-                }))
+                setVisitForm((f) => ({ ...f, observations: e.target.value }))
               }
               className={textareaClass()}
             />
           </div>
 
-          <div className="space-y-1.5">
-            <Label className="font-body text-sm font-medium text-foreground">
-              Safety Concerns
-            </Label>
-            <textarea
-              rows={2}
-              placeholder="Note any threats, risks, or safety issues observed or reported…"
-              value={visitForm.safetyConcerns}
-              onChange={(e) =>
-                setVisitForm((f) => ({ ...f, safetyConcerns: e.target.value }))
-              }
-              className={textareaClass()}
-            />
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="font-body text-sm font-medium text-foreground">
+                Visit Outcome
+              </Label>
+              <select
+                aria-label="Visit outcome"
+                value={visitForm.visitOutcome}
+                onChange={(e) =>
+                  setVisitForm((f) => ({ ...f, visitOutcome: e.target.value }))
+                }
+                className={selectClass()}
+              >
+                <option value="">Select…</option>
+                {["Favorable", "Partially Favorable", "Unfavorable", "Inconclusive", "Pending Follow-up"].map((o) => (
+                  <option key={o}>{o}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1.5 flex flex-col justify-end pb-0.5">
+              <Label className="font-body text-sm font-medium text-foreground mb-1">
+                Flags
+              </Label>
+              <div className="flex flex-col gap-1.5">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={visitForm.safetyConcernsNoted}
+                    onChange={(e) => setVisitForm((f) => ({ ...f, safetyConcernsNoted: e.target.checked }))}
+                    className="h-4 w-4 rounded accent-primary"
+                  />
+                  <span className="font-body text-sm text-foreground">Safety Concerns Noted</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={visitForm.followUpNeeded}
+                    onChange={(e) => setVisitForm((f) => ({ ...f, followUpNeeded: e.target.checked }))}
+                    className="h-4 w-4 rounded accent-primary"
+                  />
+                  <span className="font-body text-sm text-foreground">Follow-up Needed</span>
+                </label>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-1.5">
             <Label className="font-body text-sm font-medium text-foreground">
-              Follow-up Actions <span className="text-red-500">*</span>
+              Follow-up Notes
             </Label>
             <textarea
-              required
               rows={2}
               placeholder="Next steps, referrals, or tasks arising from this visit…"
-              value={visitForm.followUpActions}
+              value={visitForm.followUpNotes}
               onChange={(e) =>
-                setVisitForm((f) => ({ ...f, followUpActions: e.target.value }))
+                setVisitForm((f) => ({ ...f, followUpNotes: e.target.value }))
               }
               className={textareaClass()}
             />
@@ -580,6 +755,77 @@ function HomeVisitationsPage() {
               className="font-body bg-primary hover:bg-primary/90 text-primary-foreground px-5 h-10 rounded-xl"
             >
               Save Visit
+            </Button>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
+  // ── Edit visit form ──────────────────────────────────────────────────────────
+
+  function renderEditVisitForm() {
+    return (
+      <div className="mt-3 bg-muted/30 rounded-xl border border-border p-4">
+        <h4 className="font-heading text-sm font-bold text-foreground mb-3">Edit Visit</h4>
+        <form onSubmit={handleEditVisitSubmit} className="space-y-3">
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label className="font-body text-xs font-medium text-foreground">Visit Date</Label>
+              <Input type="date" required value={editVisitForm.visitDate} onChange={(e) => setEditVisitForm((f) => ({ ...f, visitDate: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <Label className="font-body text-xs font-medium text-foreground">Social Worker</Label>
+              <Input required value={editVisitForm.socialWorker} onChange={(e) => setEditVisitForm((f) => ({ ...f, socialWorker: e.target.value }))} />
+            </div>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label className="font-body text-xs font-medium text-foreground">Visit Type</Label>
+              <select aria-label="Visit type" value={editVisitForm.visitType} onChange={(e) => setEditVisitForm((f) => ({ ...f, visitType: e.target.value as VisitType }))} className={selectClass()}>
+                {VISIT_TYPES.map((t) => <option key={t}>{t}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <Label className="font-body text-xs font-medium text-foreground">Family Cooperation</Label>
+              <select aria-label="Family cooperation level" value={editVisitForm.familyCooperationLevel} onChange={(e) => setEditVisitForm((f) => ({ ...f, familyCooperationLevel: e.target.value as FamilyCooperation }))} className={selectClass()}>
+                {COOPERATION_LEVELS.map((c) => <option key={c}>{c}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="font-body text-xs font-medium text-foreground">Observations</Label>
+            <textarea required rows={3} value={editVisitForm.observations} onChange={(e) => setEditVisitForm((f) => ({ ...f, observations: e.target.value }))} className={textareaClass()} />
+          </div>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label className="font-body text-xs font-medium text-foreground">Visit Outcome</Label>
+              <select aria-label="Visit outcome" value={editVisitForm.visitOutcome} onChange={(e) => setEditVisitForm((f) => ({ ...f, visitOutcome: e.target.value }))} className={selectClass()}>
+                <option value="">Select…</option>
+                {["Favorable", "Partially Favorable", "Unfavorable", "Inconclusive", "Pending Follow-up"].map((o) => <option key={o}>{o}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1 flex flex-col justify-end">
+              <div className="flex flex-col gap-1">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={editVisitForm.safetyConcernsNoted} onChange={(e) => setEditVisitForm((f) => ({ ...f, safetyConcernsNoted: e.target.checked }))} className="h-4 w-4 rounded accent-primary" />
+                  <span className="font-body text-xs text-foreground">Safety Concerns Noted</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={editVisitForm.followUpNeeded} onChange={(e) => setEditVisitForm((f) => ({ ...f, followUpNeeded: e.target.checked }))} className="h-4 w-4 rounded accent-primary" />
+                  <span className="font-body text-xs text-foreground">Follow-up Needed</span>
+                </label>
+              </div>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="font-body text-xs font-medium text-foreground">Follow-up Notes</Label>
+            <textarea rows={2} value={editVisitForm.followUpNotes} onChange={(e) => setEditVisitForm((f) => ({ ...f, followUpNotes: e.target.value }))} className={textareaClass()} />
+          </div>
+          <div className="flex gap-2 justify-end">
+            <Button type="button" variant="outline" onClick={() => { setEditingVisitId(null); setEditVisitForm(EMPTY_VISIT); }} className="font-body px-4 h-8 rounded-xl text-sm">Cancel</Button>
+            <Button type="submit" disabled={updateVisitMutation.isPending} className="font-body bg-primary hover:bg-primary/90 text-primary-foreground px-4 h-8 rounded-xl text-sm">
+              {updateVisitMutation.isPending ? "Saving…" : "Save Changes"}
             </Button>
           </div>
         </form>
@@ -613,54 +859,65 @@ function HomeVisitationsPage() {
                           {formatDate(v.visitDate)}
                         </p>
                         <p className="font-body text-sm text-muted-foreground mt-0.5">
-                          Conducted by {v.staffName}
+                          Conducted by {v.socialWorker}
+                          {v.locationVisited && <> &mdash; {v.locationVisited}</>}
                         </p>
                       </div>
-                      <div className="flex gap-2 flex-wrap">
-                        <span
-                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-body font-medium border ${VISIT_TYPE_COLORS[v.visitType]}`}
-                        >
+                      <div className="flex gap-2 flex-wrap items-center">
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-body font-medium border ${VISIT_TYPE_COLORS[v.visitType]}`}>
                           {v.visitType}
                         </span>
-                        <span
-                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-body font-medium border ${COOPERATION_COLORS[v.familyCooperation]}`}
-                        >
-                          {v.familyCooperation}
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-body font-medium border ${COOPERATION_COLORS[v.familyCooperationLevel]}`}>
+                          {v.familyCooperationLevel}
                         </span>
+                        {v.visitOutcome && (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-body font-medium bg-muted text-muted-foreground border border-border">
+                            {v.visitOutcome}
+                          </span>
+                        )}
+                        {v.safetyConcernsNoted && (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-body font-medium bg-red-50 text-red-700 border border-red-200">
+                            Safety Concerns
+                          </span>
+                        )}
+                        <button
+                          onClick={() => handleEditVisit(v)}
+                          className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                          aria-label="Edit visit"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteVisit(v.id)}
+                          disabled={deleteVisitMutation.isPending}
+                          className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                          aria-label="Delete visit"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                     </div>
                     <div className="space-y-3">
                       <div>
                         <p className="font-body text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
-                          Home Environment Observations
+                          Observations
                         </p>
                         <p className="font-body text-sm text-foreground leading-relaxed">
-                          {v.homeEnvironmentObservations}
+                          {v.observations}
                         </p>
                       </div>
-                      <div className="grid sm:grid-cols-2 gap-3 pt-1">
+                      {(v.followUpNotes || v.followUpNeeded) && (
                         <div>
                           <p className="font-body text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
-                            Safety Concerns
+                            Follow-up Notes
                           </p>
                           <p className="font-body text-sm text-foreground leading-relaxed">
-                            {v.safetyConcerns || (
-                              <span className="text-muted-foreground">
-                                None identified.
-                              </span>
-                            )}
+                            {v.followUpNotes || <span className="text-muted-foreground">Follow-up required.</span>}
                           </p>
                         </div>
-                        <div>
-                          <p className="font-body text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
-                            Follow-up Actions
-                          </p>
-                          <p className="font-body text-sm text-foreground leading-relaxed">
-                            {v.followUpActions}
-                          </p>
-                        </div>
-                      </div>
+                      )}
                     </div>
+                    {editingVisitId === v.id && renderEditVisitForm()}
                   </div>
                 </div>
               ))}
@@ -945,7 +1202,7 @@ function HomeVisitationsPage() {
     <div className="min-h-screen bg-background font-body">
       <AdminSidebar user={user ?? null} />
 
-      <main className="ml-64 p-8">
+      <main className="md:ml-64 p-4 md:p-8">
         {/* Page header */}
         <div className="mb-8">
           <h1 className="font-heading text-3xl font-bold text-foreground">

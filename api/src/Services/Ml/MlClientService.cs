@@ -73,6 +73,42 @@ public class MlClientService
             ct
         );
     }
+
+    /// <summary>
+    /// POST /{pipeline}/batch/predict — sends a JSON array of feature objects and returns a JSON array of predictions.
+    /// </summary>
+    public async Task<JsonElement> BatchPredictAsync(
+        string pipeline,
+        JsonElement body,
+        CancellationToken ct = default
+    )
+    {
+        var content = new StringContent(
+            body.GetRawText(),
+            System.Text.Encoding.UTF8,
+            "application/json"
+        );
+
+        var resp = await _http.PostAsync($"/{pipeline}/batch/predict", content, ct);
+
+        if (!resp.IsSuccessStatusCode)
+        {
+            var errorBody = await resp.Content.ReadAsStringAsync(ct);
+            _logger.LogWarning(
+                "ML service returned {StatusCode} for {Pipeline}/batch/predict: {Body}",
+                (int)resp.StatusCode,
+                pipeline,
+                errorBody
+            );
+            throw new MlServiceException((int)resp.StatusCode, errorBody);
+        }
+
+        return await JsonSerializer.DeserializeAsync<JsonElement>(
+            await resp.Content.ReadAsStreamAsync(ct),
+            JsonOptions,
+            ct
+        );
+    }
 }
 
 public class MlServiceException : Exception
