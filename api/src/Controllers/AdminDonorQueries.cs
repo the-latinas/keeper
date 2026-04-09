@@ -95,15 +95,19 @@ internal static class AdminDonorQueries
         CancellationToken cancellationToken
     )
     {
-        var safehouses = await db
+        var safehouseRows = await db
             .Safehouses.AsNoTracking()
             .OrderBy(s => s.SafehouseId)
+            .Select(s => new { s.SafehouseId, s.Name })
+            .ToListAsync(cancellationToken);
+
+        var safehouses = safehouseRows
             .Select(s => new AdminLookupSafehouseDto
             {
                 Id = s.SafehouseId.ToString(CultureInfo.InvariantCulture),
                 Name = s.Name,
             })
-            .ToListAsync(cancellationToken);
+            .ToList();
 
         var programs = await db
             .DonationAllocations.AsNoTracking()

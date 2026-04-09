@@ -179,9 +179,13 @@ public class AdminController : ControllerBase
         CancellationToken cancellationToken
     )
     {
-        var list = await _db
+        // Fetch entities first; BuildLocation() can't be translated to SQL so projection runs in memory.
+        var entities = await _db
             .Safehouses.AsNoTracking()
             .OrderBy(s => s.SafehouseId)
+            .ToListAsync(cancellationToken);
+
+        var list = entities
             .Select(s => new AdminSafehouseDto
             {
                 Id = s.SafehouseId.ToString(CultureInfo.InvariantCulture),
@@ -191,7 +195,7 @@ public class AdminController : ControllerBase
                 Capacity = s.CapacityGirls ?? 0,
                 CurrentOccupancy = s.CurrentOccupancy ?? 0,
             })
-            .ToListAsync(cancellationToken);
+            .ToList();
 
         return Ok(list);
     }
@@ -833,12 +837,21 @@ public class AdminController : ControllerBase
     {
         const int maxRows = 2000;
 
-        var donorsTask = FetchDonorMlFeaturesAsync(maxRows, ct);
-        var residentsTask = FetchResidentMlFeaturesAsync(maxRows, ct);
-        await Task.WhenAll(donorsTask, residentsTask);
-
-        var donors = await donorsTask;
-        var residents = await residentsTask;
+        List<AdminDonorMlFeaturesDto> donors;
+        List<AdminResidentMlFeaturesDto> residents;
+        try
+        {
+            var donorsTask = FetchDonorMlFeaturesAsync(maxRows, ct);
+            var residentsTask = FetchResidentMlFeaturesAsync(maxRows, ct);
+            await Task.WhenAll(donorsTask, residentsTask);
+            donors = await donorsTask;
+            residents = await residentsTask;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Database error fetching ML feature rows for reports aggregate.");
+            return StatusCode(500, new { error = "Failed to load data for ML reports." });
+        }
 
         var agg = new ReportsMlAggregateDto
         {
@@ -1005,6 +1018,16 @@ public class AdminController : ControllerBase
                 ex.StatusCode,
                 ex.ResponseBody
             );
+            agg.MlOffline = true;
+        }
+        catch (OperationCanceledException ex)
+        {
+            _logger.LogWarning(ex, "ML service timed out during reports aggregate.");
+            agg.MlOffline = true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Unexpected error from ML service during reports aggregate.");
             agg.MlOffline = true;
         }
 

@@ -620,7 +620,7 @@ public class AdminDataController : ControllerBase
                 : await _db
                     .Database.SqlQuery<HomeVisitationRow>(
                         $"""
-                        SELECT
+                        SELECT TOP 500
                             CAST(hv.visitation_id AS int) AS id,
                             CAST(hv.resident_id AS int) AS resident_id,
                             CONVERT(varchar(10), hv.visit_date, 23) AS visit_date,
