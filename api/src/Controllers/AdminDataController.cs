@@ -403,7 +403,10 @@ public class AdminDataController : ControllerBase
     }
 
     [HttpDelete("process-recordings/{id:int}")]
-    public async Task<IActionResult> DeleteProcessRecording([FromRoute] int id, CancellationToken ct)
+    public async Task<IActionResult> DeleteProcessRecording(
+        [FromRoute] int id,
+        CancellationToken ct
+    )
     {
         try
         {

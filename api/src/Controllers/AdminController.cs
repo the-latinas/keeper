@@ -1,12 +1,12 @@
-using System.Globalization;
 using System.ComponentModel.DataAnnotations;
+using System.Globalization;
+using System.Text.Json.Serialization;
 using api.Data;
 using api.DTOs;
 using api.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Text.Json.Serialization;
 
 namespace api.Controllers;
 
@@ -274,7 +274,10 @@ public class AdminController : ControllerBase
             .ToListAsync(cancellationToken);
 
         var insertedId = insertedIdRows.FirstOrDefault();
-        return Created($"/api/admin/supporters/{insertedId}", new { id = insertedId.ToString(CultureInfo.InvariantCulture) });
+        return Created(
+            $"/api/admin/supporters/{insertedId}",
+            new { id = insertedId.ToString(CultureInfo.InvariantCulture) }
+        );
     }
 
     /// <summary>Update a supporter row used by the Donors &amp; Contributions page.</summary>
@@ -514,7 +517,10 @@ public class AdminController : ControllerBase
             .ToListAsync(cancellationToken);
 
         var insertedId = insertedIdRows.FirstOrDefault();
-        return Created($"/api/admin/caseload/residents/{insertedId}", new { id = insertedId.ToString(CultureInfo.InvariantCulture) });
+        return Created(
+            $"/api/admin/caseload/residents/{insertedId}",
+            new { id = insertedId.ToString(CultureInfo.InvariantCulture) }
+        );
     }
 
     /// <summary>Update a resident row used by the caseload page.</summary>
@@ -718,8 +724,10 @@ public class AdminController : ControllerBase
             return "admission_date must be a valid yyyy-MM-dd date.";
         }
 
-        if (!string.IsNullOrWhiteSpace(body.ReintegrationTargetDate)
-            && !DateOnly.TryParse(body.ReintegrationTargetDate, out _))
+        if (
+            !string.IsNullOrWhiteSpace(body.ReintegrationTargetDate)
+            && !DateOnly.TryParse(body.ReintegrationTargetDate, out _)
+        )
         {
             return "reintegration_target_date must be a valid yyyy-MM-dd date.";
         }
@@ -733,19 +741,27 @@ public class AdminController : ControllerBase
         {
             ResidentCode = NullIfWhiteSpace(body.ResidentCode) ?? body.FullName.Trim(),
             FullName = body.FullName.Trim(),
-            DateOfBirth = DateTime.SpecifyKind(DateTime.Parse(body.DateOfBirth, CultureInfo.InvariantCulture), DateTimeKind.Utc),
+            DateOfBirth = DateTime.SpecifyKind(
+                DateTime.Parse(body.DateOfBirth, CultureInfo.InvariantCulture),
+                DateTimeKind.Utc
+            ),
             Sex = NullIfWhiteSpace(body.Sex) ?? string.Empty,
             CivilStatus = NullIfWhiteSpace(body.CivilStatus) ?? string.Empty,
             CaseStatus = body.CaseStatus.Trim(),
             CaseCategory = body.CaseCategory.Trim(),
             RiskLevel = body.RiskLevel.Trim(),
             HasDisability = body.HasDisability,
-            DisabilityType = body.HasDisability ? (NullIfWhiteSpace(body.DisabilityType) ?? string.Empty) : string.Empty,
+            DisabilityType = body.HasDisability
+                ? (NullIfWhiteSpace(body.DisabilityType) ?? string.Empty)
+                : string.Empty,
             Is4psBeneficiary = body.Is4psBeneficiary,
             IsSoloParent = body.IsSoloParent,
             IsIndigenous = body.IsIndigenous,
             IsInformalSettler = body.IsInformalSettler,
-            AdmissionDate = DateTime.SpecifyKind(DateTime.Parse(body.AdmissionDate, CultureInfo.InvariantCulture), DateTimeKind.Utc),
+            AdmissionDate = DateTime.SpecifyKind(
+                DateTime.Parse(body.AdmissionDate, CultureInfo.InvariantCulture),
+                DateTimeKind.Utc
+            ),
             ReferredBy = NullIfWhiteSpace(body.ReferredBy) ?? string.Empty,
             ReferralSource = NullIfWhiteSpace(body.ReferralSource) ?? string.Empty,
             AssignedSocialWorker = body.AssignedSocialWorker.Trim(),
@@ -847,55 +863,77 @@ public class AdminController : ControllerBase
         [JsonPropertyName("full_name")]
         [Required]
         public string FullName { get; set; } = string.Empty;
+
         [JsonPropertyName("resident_code")]
         public string ResidentCode { get; set; } = string.Empty;
+
         [JsonPropertyName("date_of_birth")]
         [Required]
         public string DateOfBirth { get; set; } = string.Empty;
+
         [JsonPropertyName("sex")]
         public string Sex { get; set; } = string.Empty;
+
         [JsonPropertyName("civil_status")]
         public string CivilStatus { get; set; } = string.Empty;
+
         [JsonPropertyName("case_status")]
         [Required]
         public string CaseStatus { get; set; } = string.Empty;
+
         [JsonPropertyName("case_category")]
         [Required]
         public string CaseCategory { get; set; } = string.Empty;
+
         [JsonPropertyName("case_subcategories")]
         public List<string> CaseSubcategories { get; set; } = [];
+
         [JsonPropertyName("risk_level")]
         [Required]
         public string RiskLevel { get; set; } = string.Empty;
+
         [JsonPropertyName("has_disability")]
         public bool HasDisability { get; set; }
+
         [JsonPropertyName("disability_type")]
         public string DisabilityType { get; set; } = string.Empty;
+
         [JsonPropertyName("is_4ps_beneficiary")]
         public bool Is4psBeneficiary { get; set; }
+
         [JsonPropertyName("is_solo_parent")]
         public bool IsSoloParent { get; set; }
+
         [JsonPropertyName("is_indigenous")]
         public bool IsIndigenous { get; set; }
+
         [JsonPropertyName("is_informal_settler")]
         public bool IsInformalSettler { get; set; }
+
         [JsonPropertyName("admission_date")]
         [Required]
         public string AdmissionDate { get; set; } = string.Empty;
+
         [JsonPropertyName("safehouse_id")]
         [Required]
         public string SafehouseId { get; set; } = string.Empty;
+
         [JsonPropertyName("referred_by")]
         public string ReferredBy { get; set; } = string.Empty;
+
         [JsonPropertyName("referral_source")]
         public string ReferralSource { get; set; } = string.Empty;
+
         [JsonPropertyName("assigned_social_worker")]
         [Required]
         public string AssignedSocialWorker { get; set; } = string.Empty;
+
         [JsonPropertyName("reintegration_plan")]
         public string ReintegrationPlan { get; set; } = string.Empty;
+
         [JsonPropertyName("reintegration_target_date")]
         public string ReintegrationTargetDate { get; set; } = string.Empty;
+
         [JsonPropertyName("reintegration_status")]
         public string ReintegrationStatus { get; set; } = string.Empty;
     }
@@ -905,20 +943,28 @@ public class AdminController : ControllerBase
         [JsonPropertyName("name")]
         [Required]
         public string Name { get; set; } = string.Empty;
+
         [JsonPropertyName("email")]
         public string Email { get; set; } = string.Empty;
+
         [JsonPropertyName("phone")]
         public string Phone { get; set; } = string.Empty;
+
         [JsonPropertyName("supporter_type")]
         public string SupporterType { get; set; } = string.Empty;
+
         [JsonPropertyName("status")]
         public string Status { get; set; } = string.Empty;
+
         [JsonPropertyName("organization")]
         public string Organization { get; set; } = string.Empty;
+
         [JsonPropertyName("is_anonymous")]
         public bool IsAnonymous { get; set; }
+
         [JsonPropertyName("joined_date")]
         public string JoinedDate { get; set; } = string.Empty;
+
         [JsonPropertyName("notes")]
         public string Notes { get; set; } = string.Empty;
     }
