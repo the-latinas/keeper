@@ -19,7 +19,6 @@ public class AdminController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly ILogger<AdminController> _logger;
-    private readonly MlClientService _ml;
 
     // Snake_case serializer options for building ML service request payloads.
     private static readonly JsonSerializerOptions MlJsonOptions = new()
@@ -28,11 +27,10 @@ public class AdminController : ControllerBase
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
-    public AdminController(AppDbContext db, ILogger<AdminController> logger, MlClientService ml)
+    public AdminController(AppDbContext db, ILogger<AdminController> logger)
     {
         _db = db;
         _logger = logger;
-        _ml = ml;
     }
 
     /// <summary>Residents for dashboard metrics and case lists (maps <c>dbo.residents</c>).</summary>
@@ -179,27 +177,47 @@ public class AdminController : ControllerBase
         CancellationToken cancellationToken
     )
     {
-        var rows = await _db
-            .Database.SqlQuery<AdminSafehouseDto>(
-                $"""
-                SELECT
-                    CAST(safehouse_id AS nvarchar(40)) AS Id,
-                    ISNULL(name, CONCAT('Safehouse ', CAST(safehouse_id AS nvarchar(20)))) AS Name,
-                    LTRIM(RTRIM(CONCAT(
-                        ISNULL(city, ''),
-                        CASE WHEN city IS NOT NULL AND province IS NOT NULL THEN ', ' ELSE '' END,
-                        ISNULL(province, '')
-                    ))) AS Location,
-                    ISNULL(status, 'Active') AS Status,
-                    ISNULL(capacity_girls, 0) AS Capacity,
-                    ISNULL(current_occupancy, 0) AS CurrentOccupancy
-                FROM dbo.safehouses
-                ORDER BY safehouse_id ASC
-                """
-            )
-            .ToListAsync(cancellationToken);
+        try
+        {
+            var rows = await _db
+                .Database.SqlQuery<SafehouseRow>(
+                    $"""
+                    SELECT
+                        CAST(safehouse_id AS nvarchar(40)) AS Id,
+                        ISNULL(name, CONCAT('Safehouse ', CAST(safehouse_id AS nvarchar(20)))) AS Name,
+                        LTRIM(RTRIM(CONCAT(
+                            ISNULL(city, ''),
+                            CASE WHEN city IS NOT NULL AND province IS NOT NULL THEN ', ' ELSE '' END,
+                            ISNULL(province, '')
+                        ))) AS Location,
+                        ISNULL(status, 'Active') AS Status,
+                        ISNULL(capacity_girls, 0) AS Capacity,
+                        ISNULL(current_occupancy, 0) AS CurrentOccupancy
+                    FROM dbo.safehouses
+                    ORDER BY safehouse_id ASC
+                    """
+                )
+                .ToListAsync(cancellationToken);
 
-        return Ok(rows);
+            var dtos = rows
+                .Select(r => new AdminSafehouseDto
+                {
+                    Id = r.Id,
+                    Name = r.Name,
+                    Location = r.Location,
+                    Status = r.Status,
+                    Capacity = r.Capacity,
+                    CurrentOccupancy = r.CurrentOccupancy,
+                })
+                .ToList();
+
+            return Ok(dtos);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed loading safehouses.");
+            return Ok(Array.Empty<AdminSafehouseDto>());
+        }
     }
 
     /// <summary>All supporters for Donors & Contributions (read-only Phase 1).</summary>
@@ -834,6 +852,7 @@ public class AdminController : ControllerBase
     /// <summary>Aggregated ML predictions for the reports dashboard (single round-trip).</summary>
     [HttpGet("ml/reports-aggregate")]
     public async Task<ActionResult<ReportsMlAggregateDto>> GetMlReportsAggregate(
+        [FromServices] MlClientService _ml,
         CancellationToken ct
     )
     {
@@ -1628,6 +1647,16 @@ public class AdminController : ControllerBase
 
         [JsonPropertyName("notes")]
         public string Notes { get; set; } = string.Empty;
+    }
+
+    private sealed class SafehouseRow
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Location { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public int Capacity { get; set; }
+        public int CurrentOccupancy { get; set; }
     }
 
     private sealed class ResidentRow

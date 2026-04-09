@@ -17,10 +17,11 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddHttpClient<MlClientService>(client =>
 {
-    var baseUrl =
-        builder.Configuration["MLPipelines:BaseUrl"]
-        ?? throw new InvalidOperationException("MLPipelines:BaseUrl is not configured.");
-    client.BaseAddress = new Uri(baseUrl.TrimEnd('/') + "/");
+    var baseUrl = builder.Configuration["MLPipelines:BaseUrl"];
+    if (!string.IsNullOrWhiteSpace(baseUrl))
+    {
+        client.BaseAddress = new Uri(baseUrl.TrimEnd('/') + "/");
+    }
     client.Timeout = TimeSpan.FromSeconds(120);
 });
 
