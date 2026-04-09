@@ -72,18 +72,16 @@ internal static class AdminDonorQueries
 
         var firstAllocationByDonation = allocRows
             .GroupBy(x => x.DonationId)
-            .ToDictionary(
-                g => g.Key,
-                g => g.OrderBy(x => x.AllocationId).First()
-            );
+            .ToDictionary(g => g.Key, g => g.OrderBy(x => x.AllocationId).First());
 
         var list = new List<AdminContributionListDto>(donationRows.Count);
         foreach (var d in donationRows)
         {
-            var supporter = d.SupporterId.HasValue
+            var supporter =
+                d.SupporterId.HasValue
                 && supporters.TryGetValue(d.SupporterId.Value, out var matched)
-                ? matched
-                : null;
+                    ? matched
+                    : null;
             firstAllocationByDonation.TryGetValue(d.DonationId, out var alloc);
 
             list.Add(MapContribution(d, supporter, alloc?.SafehouseName, alloc?.ProgramArea));
@@ -186,16 +184,14 @@ internal static class AdminDonorQueries
     {
         if (s.CreatedAt.HasValue)
         {
-            return DateOnly.FromDateTime(s.CreatedAt.Value.Date)
+            return DateOnly
+                .FromDateTime(s.CreatedAt.Value.Date)
                 .ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         }
 
         if (s.FirstDonationDate.HasValue)
         {
-            return s.FirstDonationDate.Value.ToString(
-                "yyyy-MM-dd",
-                CultureInfo.InvariantCulture
-            );
+            return s.FirstDonationDate.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         }
 
         return string.Empty;
@@ -228,7 +224,8 @@ internal static class AdminDonorQueries
             return "Monetary Donor";
         }
 
-        return char.ToUpperInvariant(s[0]) + (s.Length > 1 ? s.Substring(1).ToLowerInvariant() : "");
+        return char.ToUpperInvariant(s[0])
+            + (s.Length > 1 ? s.Substring(1).ToLowerInvariant() : "");
     }
 
     private static string MapSupporterStatusToUi(string? status)
@@ -264,11 +261,10 @@ internal static class AdminDonorQueries
         string? allocationProgramArea
     )
     {
-        var supporterName = supporter is not null
-            ? FormatSupporterDisplayName(supporter)
-            : d.SupporterId.HasValue
-                ? $"Supporter {d.SupporterId.Value}"
-                : "Guest donor";
+        var supporterName =
+            supporter is not null ? FormatSupporterDisplayName(supporter)
+            : d.SupporterId.HasValue ? $"Supporter {d.SupporterId.Value}"
+            : "Guest donor";
 
         var uiType = MapDonationTypeToContributionUi(d.DonationType);
         var est = d.EstimatedValue ?? 0m;

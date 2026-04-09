@@ -1,10 +1,12 @@
 using System.Globalization;
+using System.ComponentModel.DataAnnotations;
 using api.Data;
 using api.DTOs;
 using api.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json.Serialization;
 
 namespace api.Controllers;
 
@@ -54,8 +56,7 @@ public class AdminController : ControllerBase
                 )
                 .ToListAsync(cancellationToken);
 
-            var dtos = rows
-                .Select(r => new AdminResidentDto
+            var dtos = rows.Select(r => new AdminResidentDto
                 {
                     Id = r.Id,
                     Status = r.Status,
@@ -120,23 +121,25 @@ public class AdminController : ControllerBase
         var allocationRows = await _db
             .DonationAllocations.AsNoTracking()
             .Where(a => donationIds.Contains(a.DonationId))
-            .Select(a => new { a.DonationId, a.AllocationId, a.ProgramArea })
+            .Select(a => new
+            {
+                a.DonationId,
+                a.AllocationId,
+                a.ProgramArea,
+            })
             .ToListAsync(cancellationToken);
 
         var firstAllocationByDonation = allocationRows
             .GroupBy(a => a.DonationId)
-            .ToDictionary(
-                g => g.Key,
-                g => g.OrderBy(x => x.AllocationId).First().ProgramArea
-            );
+            .ToDictionary(g => g.Key, g => g.OrderBy(x => x.AllocationId).First().ProgramArea);
 
         var result = new List<AdminDonationDto>(donations.Count);
         foreach (var d in donations)
         {
-            var email = d.SupporterId.HasValue
-                && emails.TryGetValue(d.SupporterId.Value, out var matched)
-                ? matched
-                : null;
+            var email =
+                d.SupporterId.HasValue && emails.TryGetValue(d.SupporterId.Value, out var matched)
+                    ? matched
+                    : null;
             firstAllocationByDonation.TryGetValue(d.DonationId, out var allocation);
 
             result.Add(
@@ -192,6 +195,162 @@ public class AdminController : ControllerBase
         return Ok(list);
     }
 
+    /// <summary>Create a supporter row used by the Donors &amp; Contributions page.</summary>
+    [HttpPost("supporters")]
+    public async Task<ActionResult<object>> CreateSupporter(
+        [FromBody] SupporterUpsertRequest body,
+        CancellationToken cancellationToken
+    )
+    {
+        if (string.IsNullOrWhiteSpace(body.Name))
+        {
+            return BadRequest(new { error = "name is required." });
+        }
+
+        DateTime? createdAt = null;
+        if (!string.IsNullOrWhiteSpace(body.JoinedDate))
+        {
+            if (!DateOnly.TryParse(body.JoinedDate, out var joined))
+            {
+                return BadRequest(new { error = "joined_date must be a valid yyyy-MM-dd date." });
+            }
+            createdAt = joined.ToDateTime(TimeOnly.MinValue);
+        }
+
+        var dbSupporterType = MapSupporterTypeForDb(body.SupporterType);
+
+        var displayName = body.IsAnonymous ? "Anonymous Donor" : body.Name.Trim();
+        var status = string.IsNullOrWhiteSpace(body.Status) ? "Active" : body.Status.Trim();
+
+        var insertedIdRows = await _db
+            .Database.SqlQuery<int>(
+                $"""
+                DECLARE @new_ids TABLE (id int);
+
+                ;WITH next_id AS (
+                    SELECT ISNULL(MAX(s.supporter_id), 0) + 1 AS supporter_id
+                    FROM dbo.supporters s WITH (UPDLOCK, HOLDLOCK)
+                )
+                INSERT INTO dbo.supporters
+                (
+                    supporter_id,
+                    supporter_type,
+                    display_name,
+                    organization_name,
+                    first_name,
+                    last_name,
+                    relationship_type,
+                    region,
+                    country,
+                    email,
+                    phone,
+                    status,
+                    created_at,
+                    first_donation_date,
+                    acquisition_channel
+                )
+                OUTPUT inserted.supporter_id INTO @new_ids(id)
+                SELECT
+                    n.supporter_id,
+                    {dbSupporterType},
+                    {displayName},
+                    {NullIfWhiteSpace(body.Organization)},
+                    {string.Empty},
+                    {string.Empty},
+                    {string.Empty},
+                    {string.Empty},
+                    {string.Empty},
+                    {NullIfWhiteSpace(body.Email)},
+                    {NullIfWhiteSpace(body.Phone)},
+                    {status},
+                    {createdAt},
+                    {null},
+                    {string.Empty}
+                FROM next_id n;
+
+                SELECT TOP (1) id AS Value FROM @new_ids;
+                """
+            )
+            .ToListAsync(cancellationToken);
+
+        var insertedId = insertedIdRows.FirstOrDefault();
+        return Created($"/api/admin/supporters/{insertedId}", new { id = insertedId.ToString(CultureInfo.InvariantCulture) });
+    }
+
+    /// <summary>Update a supporter row used by the Donors &amp; Contributions page.</summary>
+    [HttpPut("supporters/{supporterId:int}")]
+    public async Task<IActionResult> UpdateSupporter(
+        int supporterId,
+        [FromBody] SupporterUpsertRequest body,
+        CancellationToken cancellationToken
+    )
+    {
+        if (string.IsNullOrWhiteSpace(body.Name))
+        {
+            return BadRequest(new { error = "name is required." });
+        }
+
+        DateTime? createdAt = null;
+        if (!string.IsNullOrWhiteSpace(body.JoinedDate))
+        {
+            if (!DateOnly.TryParse(body.JoinedDate, out var joined))
+            {
+                return BadRequest(new { error = "joined_date must be a valid yyyy-MM-dd date." });
+            }
+            createdAt = joined.ToDateTime(TimeOnly.MinValue);
+        }
+
+        var dbSupporterType = MapSupporterTypeForDb(body.SupporterType);
+        var displayName = body.IsAnonymous ? "Anonymous Donor" : body.Name.Trim();
+        var status = string.IsNullOrWhiteSpace(body.Status) ? "Active" : body.Status.Trim();
+
+        var affected = await _db.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+            UPDATE dbo.supporters
+            SET
+                supporter_type = {dbSupporterType},
+                display_name = {displayName},
+                organization_name = {NullIfWhiteSpace(body.Organization)},
+                email = {NullIfWhiteSpace(body.Email)},
+                phone = {NullIfWhiteSpace(body.Phone)},
+                status = {status},
+                created_at = {createdAt}
+            WHERE supporter_id = {supporterId};
+            """,
+            cancellationToken
+        );
+
+        if (affected == 0)
+        {
+            return NotFound(new { error = "Supporter not found." });
+        }
+
+        return NoContent();
+    }
+
+    /// <summary>Delete a supporter row used by the Donors &amp; Contributions page.</summary>
+    [HttpDelete("supporters/{supporterId:int}")]
+    public async Task<IActionResult> DeleteSupporter(
+        int supporterId,
+        CancellationToken cancellationToken
+    )
+    {
+        var affected = await _db.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+            DELETE FROM dbo.supporters
+            WHERE supporter_id = {supporterId};
+            """,
+            cancellationToken
+        );
+
+        if (affected == 0)
+        {
+            return NotFound(new { error = "Supporter not found." });
+        }
+
+        return NoContent();
+    }
+
     /// <summary>Enriched donation rows for the Contributions tab (amounts in PHP).</summary>
     [HttpGet("contributions")]
     public async Task<ActionResult<IReadOnlyList<AdminContributionListDto>>> GetContributions(
@@ -229,7 +388,245 @@ public class AdminController : ControllerBase
         return Ok(list);
     }
 
-    private static string BuildLocation(string? city, string? region, string? province, string? country)
+    /// <summary>Create a resident row used by the caseload page.</summary>
+    [HttpPost("caseload/residents")]
+    public async Task<ActionResult<object>> CreateCaseloadResident(
+        [FromBody] CaseloadResidentUpsertRequest body,
+        CancellationToken cancellationToken
+    )
+    {
+        var validationError = ValidateUpsert(body);
+        if (validationError is not null)
+        {
+            return BadRequest(new { error = validationError });
+        }
+
+        if (!int.TryParse(body.SafehouseId, out var safehouseId))
+        {
+            return BadRequest(new { error = "safehouse_id must be a valid numeric id." });
+        }
+
+        var safehouseExists = await _db.Safehouses.AnyAsync(
+            s => s.SafehouseId == safehouseId,
+            cancellationToken
+        );
+        if (!safehouseExists)
+        {
+            return BadRequest(new { error = "safehouse_id does not exist." });
+        }
+
+        var normalized = NormalizeUpsert(body);
+        var sub = BuildSubcategoryFlags(body.CaseSubcategories);
+
+        var insertedIdRows = await _db
+            .Database.SqlQuery<int>(
+                $"""
+                DECLARE @new_ids TABLE (id int);
+
+                ;WITH next_id AS (
+                    SELECT ISNULL(MAX(r.resident_id), 0) + 1 AS resident_id
+                    FROM dbo.residents r WITH (UPDLOCK, HOLDLOCK)
+                )
+                INSERT INTO dbo.residents
+                (
+                    resident_id,
+                    internal_code,
+                    case_control_no,
+                    date_of_birth,
+                    sex,
+                    birth_status,
+                    case_status,
+                    case_category,
+                    sub_cat_orphaned,
+                    sub_cat_trafficked,
+                    sub_cat_child_labor,
+                    sub_cat_physical_abuse,
+                    sub_cat_sexual_abuse,
+                    sub_cat_osaec,
+                    sub_cat_cicl,
+                    sub_cat_at_risk,
+                    sub_cat_street_child,
+                    sub_cat_child_with_hiv,
+                    is_pwd,
+                    pwd_type,
+                    has_special_needs,
+                    special_needs_diagnosis,
+                    family_is_4ps,
+                    family_solo_parent,
+                    family_indigenous,
+                    family_parent_pwd,
+                    family_informal_settler,
+                    date_of_admission,
+                    safehouse_id,
+                    referring_agency_person,
+                    referral_source,
+                    assigned_social_worker,
+                    initial_case_assessment,
+                    reintegration_status,
+                    current_risk_level,
+                    initial_risk_level,
+                    date_case_study_prepared
+                )
+                OUTPUT inserted.resident_id INTO @new_ids(id)
+                SELECT
+                    n.resident_id,
+                    {normalized.ResidentCode},
+                    {normalized.FullName},
+                    {normalized.DateOfBirth},
+                    {normalized.Sex},
+                    {normalized.CivilStatus},
+                    {normalized.CaseStatus},
+                    {normalized.CaseCategory},
+                    {sub.Orphaned},
+                    {sub.Trafficked},
+                    {sub.ChildLabor},
+                    {sub.PhysicalAbuse},
+                    {sub.SexualAbuse},
+                    {sub.Osaec},
+                    {sub.Cicl},
+                    {sub.AtRisk},
+                    {sub.StreetChild},
+                    {sub.ChildWithHiv},
+                    {normalized.HasDisability},
+                    {normalized.DisabilityType},
+                    {false},
+                    {string.Empty},
+                    {normalized.Is4psBeneficiary},
+                    {normalized.IsSoloParent},
+                    {normalized.IsIndigenous},
+                    {false},
+                    {normalized.IsInformalSettler},
+                    {normalized.AdmissionDate},
+                    {safehouseId},
+                    {normalized.ReferredBy},
+                    {normalized.ReferralSource},
+                    {normalized.AssignedSocialWorker},
+                    {normalized.ReintegrationPlan},
+                    {normalized.ReintegrationStatus},
+                    {normalized.RiskLevel},
+                    {normalized.RiskLevel},
+                    {normalized.ReintegrationTargetDate}
+                FROM next_id n;
+
+                SELECT TOP (1) id AS Value FROM @new_ids;
+                """
+            )
+            .ToListAsync(cancellationToken);
+
+        var insertedId = insertedIdRows.FirstOrDefault();
+        return Created($"/api/admin/caseload/residents/{insertedId}", new { id = insertedId.ToString(CultureInfo.InvariantCulture) });
+    }
+
+    /// <summary>Update a resident row used by the caseload page.</summary>
+    [HttpPut("caseload/residents/{residentId:int}")]
+    public async Task<IActionResult> UpdateCaseloadResident(
+        int residentId,
+        [FromBody] CaseloadResidentUpsertRequest body,
+        CancellationToken cancellationToken
+    )
+    {
+        var validationError = ValidateUpsert(body);
+        if (validationError is not null)
+        {
+            return BadRequest(new { error = validationError });
+        }
+
+        if (!int.TryParse(body.SafehouseId, out var safehouseId))
+        {
+            return BadRequest(new { error = "safehouse_id must be a valid numeric id." });
+        }
+
+        var safehouseExists = await _db.Safehouses.AnyAsync(
+            s => s.SafehouseId == safehouseId,
+            cancellationToken
+        );
+        if (!safehouseExists)
+        {
+            return BadRequest(new { error = "safehouse_id does not exist." });
+        }
+
+        var normalized = NormalizeUpsert(body);
+        var sub = BuildSubcategoryFlags(body.CaseSubcategories);
+
+        var affected = await _db.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+            UPDATE dbo.residents
+            SET
+                internal_code = {normalized.ResidentCode},
+                case_control_no = {normalized.FullName},
+                date_of_birth = {normalized.DateOfBirth},
+                sex = {normalized.Sex},
+                birth_status = {normalized.CivilStatus},
+                case_status = {normalized.CaseStatus},
+                case_category = {normalized.CaseCategory},
+                sub_cat_orphaned = {sub.Orphaned},
+                sub_cat_trafficked = {sub.Trafficked},
+                sub_cat_child_labor = {sub.ChildLabor},
+                sub_cat_physical_abuse = {sub.PhysicalAbuse},
+                sub_cat_sexual_abuse = {sub.SexualAbuse},
+                sub_cat_osaec = {sub.Osaec},
+                sub_cat_cicl = {sub.Cicl},
+                sub_cat_at_risk = {sub.AtRisk},
+                sub_cat_street_child = {sub.StreetChild},
+                sub_cat_child_with_hiv = {sub.ChildWithHiv},
+                is_pwd = {normalized.HasDisability},
+                pwd_type = {normalized.DisabilityType},
+                family_is_4ps = {normalized.Is4psBeneficiary},
+                family_solo_parent = {normalized.IsSoloParent},
+                family_indigenous = {normalized.IsIndigenous},
+                family_informal_settler = {normalized.IsInformalSettler},
+                date_of_admission = {normalized.AdmissionDate},
+                safehouse_id = {safehouseId},
+                referring_agency_person = {normalized.ReferredBy},
+                referral_source = {normalized.ReferralSource},
+                assigned_social_worker = {normalized.AssignedSocialWorker},
+                initial_case_assessment = {normalized.ReintegrationPlan},
+                reintegration_status = {normalized.ReintegrationStatus},
+                current_risk_level = {normalized.RiskLevel},
+                initial_risk_level = {normalized.RiskLevel},
+                date_case_study_prepared = {normalized.ReintegrationTargetDate}
+            WHERE resident_id = {residentId};
+            """,
+            cancellationToken
+        );
+
+        if (affected == 0)
+        {
+            return NotFound(new { error = "Resident not found." });
+        }
+
+        return NoContent();
+    }
+
+    /// <summary>Delete a resident row used by the caseload page.</summary>
+    [HttpDelete("caseload/residents/{residentId:int}")]
+    public async Task<IActionResult> DeleteCaseloadResident(
+        int residentId,
+        CancellationToken cancellationToken
+    )
+    {
+        var affected = await _db.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+            DELETE FROM dbo.residents
+            WHERE resident_id = {residentId};
+            """,
+            cancellationToken
+        );
+
+        if (affected == 0)
+        {
+            return NotFound(new { error = "Resident not found." });
+        }
+
+        return NoContent();
+    }
+
+    private static string BuildLocation(
+        string? city,
+        string? region,
+        string? province,
+        string? country
+    )
     {
         var parts = new[] { city, region, province, country }
             .Where(p => !string.IsNullOrWhiteSpace(p))
@@ -253,6 +650,277 @@ public class AdminController : ControllerBase
         }
 
         return char.ToUpperInvariant(t[0]) + t.Substring(1).ToLowerInvariant();
+    }
+
+    private static string MapSupporterTypeForDb(string? raw)
+    {
+        return raw?.Trim() switch
+        {
+            "Monetary Donor" => "MonetaryDonor",
+            "Volunteer" => "Volunteer",
+            "Skills Contributor" => "SkillsContributor",
+            "In-Kind Donor" => "InKindDonor",
+            "Corporate Partner" => "PartnerOrganization",
+            "Social Media Advocate" => "SocialMediaAdvocate",
+            _ => "MonetaryDonor",
+        };
+    }
+
+    private static string? ValidateUpsert(CaseloadResidentUpsertRequest body)
+    {
+        if (string.IsNullOrWhiteSpace(body.FullName))
+        {
+            return "full_name is required.";
+        }
+
+        if (string.IsNullOrWhiteSpace(body.DateOfBirth))
+        {
+            return "date_of_birth is required.";
+        }
+
+        if (string.IsNullOrWhiteSpace(body.CaseStatus))
+        {
+            return "case_status is required.";
+        }
+
+        if (string.IsNullOrWhiteSpace(body.CaseCategory))
+        {
+            return "case_category is required.";
+        }
+
+        if (string.IsNullOrWhiteSpace(body.RiskLevel))
+        {
+            return "risk_level is required.";
+        }
+
+        if (string.IsNullOrWhiteSpace(body.AdmissionDate))
+        {
+            return "admission_date is required.";
+        }
+
+        if (string.IsNullOrWhiteSpace(body.SafehouseId))
+        {
+            return "safehouse_id is required.";
+        }
+
+        if (string.IsNullOrWhiteSpace(body.AssignedSocialWorker))
+        {
+            return "assigned_social_worker is required.";
+        }
+
+        if (!DateOnly.TryParse(body.DateOfBirth, out _))
+        {
+            return "date_of_birth must be a valid yyyy-MM-dd date.";
+        }
+
+        if (!DateOnly.TryParse(body.AdmissionDate, out _))
+        {
+            return "admission_date must be a valid yyyy-MM-dd date.";
+        }
+
+        if (!string.IsNullOrWhiteSpace(body.ReintegrationTargetDate)
+            && !DateOnly.TryParse(body.ReintegrationTargetDate, out _))
+        {
+            return "reintegration_target_date must be a valid yyyy-MM-dd date.";
+        }
+
+        return null;
+    }
+
+    private static NormalizedUpsert NormalizeUpsert(CaseloadResidentUpsertRequest body)
+    {
+        return new NormalizedUpsert
+        {
+            ResidentCode = NullIfWhiteSpace(body.ResidentCode) ?? body.FullName.Trim(),
+            FullName = body.FullName.Trim(),
+            DateOfBirth = DateTime.SpecifyKind(DateTime.Parse(body.DateOfBirth, CultureInfo.InvariantCulture), DateTimeKind.Utc),
+            Sex = NullIfWhiteSpace(body.Sex) ?? string.Empty,
+            CivilStatus = NullIfWhiteSpace(body.CivilStatus) ?? string.Empty,
+            CaseStatus = body.CaseStatus.Trim(),
+            CaseCategory = body.CaseCategory.Trim(),
+            RiskLevel = body.RiskLevel.Trim(),
+            HasDisability = body.HasDisability,
+            DisabilityType = body.HasDisability ? (NullIfWhiteSpace(body.DisabilityType) ?? string.Empty) : string.Empty,
+            Is4psBeneficiary = body.Is4psBeneficiary,
+            IsSoloParent = body.IsSoloParent,
+            IsIndigenous = body.IsIndigenous,
+            IsInformalSettler = body.IsInformalSettler,
+            AdmissionDate = DateTime.SpecifyKind(DateTime.Parse(body.AdmissionDate, CultureInfo.InvariantCulture), DateTimeKind.Utc),
+            ReferredBy = NullIfWhiteSpace(body.ReferredBy) ?? string.Empty,
+            ReferralSource = NullIfWhiteSpace(body.ReferralSource) ?? string.Empty,
+            AssignedSocialWorker = body.AssignedSocialWorker.Trim(),
+            ReintegrationPlan = NullIfWhiteSpace(body.ReintegrationPlan) ?? string.Empty,
+            ReintegrationStatus = NullIfWhiteSpace(body.ReintegrationStatus) ?? string.Empty,
+            ReintegrationTargetDate = ParseNullableDate(body.ReintegrationTargetDate),
+        };
+    }
+
+    private static DateTime? ParseNullableDate(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        if (!DateTime.TryParse(value, out var parsed))
+        {
+            return null;
+        }
+
+        return DateTime.SpecifyKind(parsed.Date, DateTimeKind.Utc);
+    }
+
+    private static string? NullIfWhiteSpace(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        return value.Trim();
+    }
+
+    private static SubcategoryFlags BuildSubcategoryFlags(IEnumerable<string>? caseSubcategories)
+    {
+        var set = new HashSet<string>(
+            caseSubcategories?.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim())
+                ?? Enumerable.Empty<string>(),
+            StringComparer.OrdinalIgnoreCase
+        );
+
+        return new SubcategoryFlags
+        {
+            Orphaned = set.Contains("Orphaned"),
+            Trafficked = set.Contains("Trafficked"),
+            ChildLabor = set.Contains("Child Labor"),
+            PhysicalAbuse = set.Contains("Physical Abuse"),
+            SexualAbuse = set.Contains("Sexual Abuse"),
+            Osaec = set.Contains("OSAEC"),
+            Cicl = set.Contains("CICL"),
+            AtRisk = set.Contains("At Risk"),
+            StreetChild = set.Contains("Street Child"),
+            ChildWithHiv = set.Contains("Child with HIV"),
+        };
+    }
+
+    private sealed class SubcategoryFlags
+    {
+        public bool Orphaned { get; set; }
+        public bool Trafficked { get; set; }
+        public bool ChildLabor { get; set; }
+        public bool PhysicalAbuse { get; set; }
+        public bool SexualAbuse { get; set; }
+        public bool Osaec { get; set; }
+        public bool Cicl { get; set; }
+        public bool AtRisk { get; set; }
+        public bool StreetChild { get; set; }
+        public bool ChildWithHiv { get; set; }
+    }
+
+    private sealed class NormalizedUpsert
+    {
+        public string ResidentCode { get; set; } = string.Empty;
+        public string FullName { get; set; } = string.Empty;
+        public DateTime DateOfBirth { get; set; }
+        public string Sex { get; set; } = string.Empty;
+        public string CivilStatus { get; set; } = string.Empty;
+        public string CaseStatus { get; set; } = string.Empty;
+        public string CaseCategory { get; set; } = string.Empty;
+        public string RiskLevel { get; set; } = string.Empty;
+        public bool HasDisability { get; set; }
+        public string DisabilityType { get; set; } = string.Empty;
+        public bool Is4psBeneficiary { get; set; }
+        public bool IsSoloParent { get; set; }
+        public bool IsIndigenous { get; set; }
+        public bool IsInformalSettler { get; set; }
+        public DateTime AdmissionDate { get; set; }
+        public string ReferredBy { get; set; } = string.Empty;
+        public string ReferralSource { get; set; } = string.Empty;
+        public string AssignedSocialWorker { get; set; } = string.Empty;
+        public string ReintegrationPlan { get; set; } = string.Empty;
+        public DateTime? ReintegrationTargetDate { get; set; }
+        public string ReintegrationStatus { get; set; } = string.Empty;
+    }
+
+    public sealed class CaseloadResidentUpsertRequest
+    {
+        [JsonPropertyName("full_name")]
+        [Required]
+        public string FullName { get; set; } = string.Empty;
+        [JsonPropertyName("resident_code")]
+        public string ResidentCode { get; set; } = string.Empty;
+        [JsonPropertyName("date_of_birth")]
+        [Required]
+        public string DateOfBirth { get; set; } = string.Empty;
+        [JsonPropertyName("sex")]
+        public string Sex { get; set; } = string.Empty;
+        [JsonPropertyName("civil_status")]
+        public string CivilStatus { get; set; } = string.Empty;
+        [JsonPropertyName("case_status")]
+        [Required]
+        public string CaseStatus { get; set; } = string.Empty;
+        [JsonPropertyName("case_category")]
+        [Required]
+        public string CaseCategory { get; set; } = string.Empty;
+        [JsonPropertyName("case_subcategories")]
+        public List<string> CaseSubcategories { get; set; } = [];
+        [JsonPropertyName("risk_level")]
+        [Required]
+        public string RiskLevel { get; set; } = string.Empty;
+        [JsonPropertyName("has_disability")]
+        public bool HasDisability { get; set; }
+        [JsonPropertyName("disability_type")]
+        public string DisabilityType { get; set; } = string.Empty;
+        [JsonPropertyName("is_4ps_beneficiary")]
+        public bool Is4psBeneficiary { get; set; }
+        [JsonPropertyName("is_solo_parent")]
+        public bool IsSoloParent { get; set; }
+        [JsonPropertyName("is_indigenous")]
+        public bool IsIndigenous { get; set; }
+        [JsonPropertyName("is_informal_settler")]
+        public bool IsInformalSettler { get; set; }
+        [JsonPropertyName("admission_date")]
+        [Required]
+        public string AdmissionDate { get; set; } = string.Empty;
+        [JsonPropertyName("safehouse_id")]
+        [Required]
+        public string SafehouseId { get; set; } = string.Empty;
+        [JsonPropertyName("referred_by")]
+        public string ReferredBy { get; set; } = string.Empty;
+        [JsonPropertyName("referral_source")]
+        public string ReferralSource { get; set; } = string.Empty;
+        [JsonPropertyName("assigned_social_worker")]
+        [Required]
+        public string AssignedSocialWorker { get; set; } = string.Empty;
+        [JsonPropertyName("reintegration_plan")]
+        public string ReintegrationPlan { get; set; } = string.Empty;
+        [JsonPropertyName("reintegration_target_date")]
+        public string ReintegrationTargetDate { get; set; } = string.Empty;
+        [JsonPropertyName("reintegration_status")]
+        public string ReintegrationStatus { get; set; } = string.Empty;
+    }
+
+    public sealed class SupporterUpsertRequest
+    {
+        [JsonPropertyName("name")]
+        [Required]
+        public string Name { get; set; } = string.Empty;
+        [JsonPropertyName("email")]
+        public string Email { get; set; } = string.Empty;
+        [JsonPropertyName("phone")]
+        public string Phone { get; set; } = string.Empty;
+        [JsonPropertyName("supporter_type")]
+        public string SupporterType { get; set; } = string.Empty;
+        [JsonPropertyName("status")]
+        public string Status { get; set; } = string.Empty;
+        [JsonPropertyName("organization")]
+        public string Organization { get; set; } = string.Empty;
+        [JsonPropertyName("is_anonymous")]
+        public bool IsAnonymous { get; set; }
+        [JsonPropertyName("joined_date")]
+        public string JoinedDate { get; set; } = string.Empty;
+        [JsonPropertyName("notes")]
+        public string Notes { get; set; } = string.Empty;
     }
 
     private sealed class ResidentRow

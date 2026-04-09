@@ -32,11 +32,9 @@ export const Route = createFileRoute("/signup/verify")({
 			.fetchQuery(meQueryOptions)
 			.catch(() => null);
 		if (user) {
+			const roles = Array.isArray(user.roles) ? user.roles : [];
 			throw redirect({
-				to:
-					user.roles.includes("Admin") || user.roles.includes("Staff")
-						? "/admin"
-						: "/dashboard",
+				to: roles.includes("Admin") || roles.includes("Staff") ? "/admin" : "/dashboard",
 			});
 		}
 	},

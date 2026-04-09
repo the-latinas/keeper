@@ -28,9 +28,10 @@ export async function requireRole(
 	...roles: string[]
 ): Promise<AuthUser> {
 	const user = await requireAuth(queryClient);
-	if (!roles.some((r) => user.roles.includes(r))) {
+	const userRoles = Array.isArray(user.roles) ? user.roles : [];
+	if (!roles.some((r) => userRoles.includes(r))) {
 		const to =
-			user.roles.includes("Admin") || user.roles.includes("Staff")
+			userRoles.includes("Admin") || userRoles.includes("Staff")
 				? "/admin"
 				: "/dashboard";
 		throw redirect({ to });

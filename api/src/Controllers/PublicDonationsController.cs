@@ -68,7 +68,8 @@ public class PublicDonationsController : ControllerBase
                     .Where(s => s.Email != null && s.Email.Trim() == normalizedEmail)
                     .Select(s => (int?)s.SupporterId)
                     .FirstOrDefaultAsync(cancellationToken);
-                if (linked.HasValue) supporterId = linked.Value;
+                if (linked.HasValue)
+                    supporterId = linked.Value;
             }
         }
 

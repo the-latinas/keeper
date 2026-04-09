@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { CalendarDays, ChevronUp, Plus, User, Users } from "lucide-react";
+import { CalendarDays, ChevronUp, Pencil, Plus, Trash2, User, Users } from "lucide-react";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import { apiGetJson, getApiBaseUrl, type AuthMeResponse } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -84,6 +84,7 @@ function ProcessRecordingsPage() {
   );
   const [residentSearch, setResidentSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [editingRecordingId, setEditingRecordingId] = useState<number | null>(null);
   const [formData, setFormData] = useState(EMPTY_FORM);
 
   const { data: user } = useQuery({
@@ -159,6 +160,62 @@ function ProcessRecordingsPage() {
     },
   });
 
+  const updateRecordingMutation = useMutation({
+    mutationFn: async (payload: {
+      id: number;
+      session_date: string;
+      social_worker: string;
+      session_type: SessionType;
+      emotional_state: string;
+      narrative_summary: string;
+      interventions: string;
+      follow_up_actions: string;
+    }) => {
+      const apiBaseUrl = getApiBaseUrl();
+      if (!apiBaseUrl) throw new Error("API base URL not configured");
+      const response = await fetch(
+        `${apiBaseUrl}/api/admin-data/process-recordings/${payload.id}`,
+        {
+          method: "PUT",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            session_date: payload.session_date,
+            social_worker: payload.social_worker,
+            session_type: payload.session_type,
+            emotional_state: payload.emotional_state,
+            narrative_summary: payload.narrative_summary,
+            interventions: payload.interventions,
+            follow_up_actions: payload.follow_up_actions,
+          }),
+        },
+      );
+      if (!response.ok) throw new Error("Failed to update recording");
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["process-recordings", selectedResident?.id ?? null],
+      });
+    },
+  });
+
+  const deleteRecordingMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const apiBaseUrl = getApiBaseUrl();
+      if (!apiBaseUrl) throw new Error("API base URL not configured");
+      const response = await fetch(`${apiBaseUrl}/api/admin-data/process-recordings/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to delete recording");
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["process-recordings", selectedResident?.id ?? null],
+      });
+    },
+  });
+
   const searchQuery = residentSearch.toLowerCase();
   const filteredResidents = residents.filter((r) => {
     const residentName = (r.name ?? "").toLowerCase();
@@ -175,25 +232,65 @@ function ProcessRecordingsPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedResident) return;
-    await createRecordingMutation.mutateAsync({
-      resident_id: selectedResident.id,
-      session_date: formData.sessionDate,
-      social_worker: formData.socialWorker,
-      session_type: formData.sessionType,
-      emotional_state: formData.emotionalState,
-      narrative_summary: formData.narrativeSummary,
-      interventions: formData.interventions,
-      follow_up_actions: formData.followUpActions,
-    });
+    if (editingRecordingId !== null) {
+      await updateRecordingMutation.mutateAsync({
+        id: editingRecordingId,
+        session_date: formData.sessionDate,
+        social_worker: formData.socialWorker,
+        session_type: formData.sessionType,
+        emotional_state: formData.emotionalState,
+        narrative_summary: formData.narrativeSummary,
+        interventions: formData.interventions,
+        follow_up_actions: formData.followUpActions,
+      });
+    } else {
+      await createRecordingMutation.mutateAsync({
+        resident_id: selectedResident.id,
+        session_date: formData.sessionDate,
+        social_worker: formData.socialWorker,
+        session_type: formData.sessionType,
+        emotional_state: formData.emotionalState,
+        narrative_summary: formData.narrativeSummary,
+        interventions: formData.interventions,
+        follow_up_actions: formData.followUpActions,
+      });
+    }
     setFormData(EMPTY_FORM);
     setShowForm(false);
+    setEditingRecordingId(null);
   }
 
 	function handleSelectResident(resident: Resident) {
 		setSelectedResident(resident);
 		setShowForm(false);
 		setFormData(EMPTY_FORM);
+    setEditingRecordingId(null);
 	}
+
+  function handleEditRecording(recording: ProcessRecording) {
+    setFormData({
+      sessionDate: recording.sessionDate,
+      socialWorker: recording.socialWorker,
+      sessionType: recording.sessionType,
+      emotionalState: recording.emotionalState,
+      narrativeSummary: recording.narrativeSummary,
+      interventions: recording.interventions,
+      followUpActions: recording.followUpActions,
+    });
+    setEditingRecordingId(recording.id);
+    setShowForm(true);
+  }
+
+  async function handleDeleteRecording(recordingId: number) {
+    const confirmed = window.confirm("Delete this process recording?");
+    if (!confirmed) return;
+    await deleteRecordingMutation.mutateAsync(recordingId);
+    if (editingRecordingId === recordingId) {
+      setEditingRecordingId(null);
+      setShowForm(false);
+      setFormData(EMPTY_FORM);
+    }
+  }
 
 	return (
 		<div className="min-h-screen bg-background font-body">
@@ -291,7 +388,7 @@ function ProcessRecordingsPage() {
 									) : (
 										<>
 											<Plus className="h-4 w-4" />
-											New Recording
+											{editingRecordingId !== null ? "Edit Recording" : "New Recording"}
 										</>
 									)}
 								</Button>
@@ -301,7 +398,9 @@ function ProcessRecordingsPage() {
 							{showForm && (
 								<div className="bg-card rounded-2xl border border-border shadow-sm p-6">
 									<h3 className="font-heading text-lg font-bold text-foreground mb-5">
-										New Session Recording
+										{editingRecordingId !== null
+                      ? "Edit Session Recording"
+                      : "New Session Recording"}
 									</h3>
 									<form onSubmit={handleSubmit} className="space-y-5">
 										<div className="grid sm:grid-cols-2 gap-5">
@@ -481,6 +580,7 @@ function ProcessRecordingsPage() {
 												onClick={() => {
 													setShowForm(false);
 													setFormData(EMPTY_FORM);
+                          setEditingRecordingId(null);
 												}}
 												className="font-body px-5 h-10 rounded-xl"
 											>
@@ -490,7 +590,7 @@ function ProcessRecordingsPage() {
 												type="submit"
 												className="font-body bg-primary hover:bg-primary/90 text-primary-foreground px-5 h-10 rounded-xl"
 											>
-												Save Recording
+												{editingRecordingId !== null ? "Save Changes" : "Save Recording"}
 											</Button>
 										</div>
 									</form>
@@ -560,6 +660,26 @@ function ProcessRecordingsPage() {
 																	{rec.emotionalState}
 																</span>
 															</div>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={() => handleEditRecording(rec)}
+                                  className="h-8 px-3 rounded-lg font-body text-xs"
+                                >
+                                  <Pencil className="h-3.5 w-3.5 mr-1" />
+                                  Edit
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={() => void handleDeleteRecording(rec.id)}
+                                  className="h-8 px-3 rounded-lg font-body text-xs text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5 mr-1" />
+                                  Delete
+                                </Button>
+                              </div>
 														</div>
 
 														<div className="space-y-3">

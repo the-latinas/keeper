@@ -1,9 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { DollarSign, Gift, Heart, Pencil, Plus, TrendingUp, Users, X } from "lucide-react";
 import AdminSidebar from "@/components/admin/AdminSidebar";
-import { apiGetJson, type AuthMeResponse } from "@/lib/api";
+import { apiDelete, apiGetJson, apiPostJson, apiPutJson, type AuthMeResponse } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -264,6 +264,7 @@ function ViewField({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 function DonorsPage() {
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"supporters" | "contributions">("supporters");
 
   // Supporter state
@@ -299,6 +300,63 @@ function DonorsPage() {
     queryKey: ["admin-data", "donations"],
     queryFn: () => apiGetJson<DonationApi[]>("/api/admin-data/donations"),
   });
+
+  const saveSupporterMutation = useMutation({
+    mutationFn: async (payload: { mode: "add" | "edit"; supporter: Supporter }) => {
+      const body = {
+        name: payload.supporter.name,
+        email: payload.supporter.email,
+        phone: payload.supporter.phone,
+        supporter_type: payload.supporter.supporter_type,
+        status: payload.supporter.status,
+        organization: payload.supporter.organization,
+        is_anonymous: payload.supporter.is_anonymous,
+        joined_date: payload.supporter.joined_date,
+        notes: payload.supporter.notes,
+      };
+      if (payload.mode === "add") {
+        await apiPostJson("/api/admin/supporters", body);
+        return;
+      }
+      await apiPutJson(`/api/admin/supporters/${payload.supporter.id}`, body);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["admin-data", "supporters"] });
+      await queryClient.invalidateQueries({ queryKey: ["admin", "supporters"] });
+    },
+  });
+
+  const deleteSupporterMutation = useMutation({
+    mutationFn: async (supporterId: string) => {
+      await apiDelete(`/api/admin/supporters/${supporterId}`);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["admin-data", "supporters"] });
+      await queryClient.invalidateQueries({ queryKey: ["admin", "supporters"] });
+      await queryClient.invalidateQueries({ queryKey: ["admin-data", "donations"] });
+    },
+  });
+
+  const mutationError =
+    saveSupporterMutation.error instanceof Error
+      ? saveSupporterMutation.error.message
+      : deleteSupporterMutation.error instanceof Error
+        ? deleteSupporterMutation.error.message
+        : "";
+
+  useEffect(() => {
+    if (!panelMode || panelMode === "add") return;
+    if (!panelSupporter) return;
+    const latest = supporters.find((s) => s.id === panelSupporter.id);
+    if (!latest) {
+      closePanel();
+      return;
+    }
+    setPanelSupporter(latest);
+    if (panelMode === "edit") {
+      setSupporterForm({ ...latest });
+    }
+  }, [supporters, panelMode, panelSupporter]);
 
   useEffect(() => {
     setSupporters(supportersFromApi);
@@ -396,19 +454,23 @@ function DonorsPage() {
     setSupporterForm((f) => ({ ...f, [key]: val }));
   }
 
-  function handleSupporterSave(e: React.FormEvent) {
+  async function handleSupporterSave(e: React.FormEvent) {
     e.preventDefault();
     if (panelMode === "add") {
-      const s: Supporter = { ...supporterForm, id: `s-${Date.now()}` };
-      // TODO: POST to your C# API endpoint
-      setSupporters((prev) => [s, ...prev]);
+      await saveSupporterMutation.mutateAsync({ mode: "add", supporter: supporterForm });
       closePanel();
     } else {
-      // TODO: PUT to your C# API endpoint
-      setSupporters((prev) => prev.map((s) => (s.id === supporterForm.id ? supporterForm : s)));
-      setPanelSupporter(supporterForm);
+      await saveSupporterMutation.mutateAsync({ mode: "edit", supporter: supporterForm });
       setPanelMode("view");
     }
+  }
+
+  async function handleSupporterDelete() {
+    if (!panelSupporter) return;
+    const ok = window.confirm(`Delete supporter ${panelSupporter.is_anonymous ? "Anonymous Donor" : panelSupporter.name}?`);
+    if (!ok) return;
+    await deleteSupporterMutation.mutateAsync(panelSupporter.id);
+    closePanel();
   }
 
   // ── Contribution handlers ──────────────────────────────────────────────────
@@ -972,8 +1034,21 @@ function DonorsPage() {
             </div>
 
             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border flex-shrink-0 bg-background">
+              {mutationError && (
+                <p className="mr-auto font-body text-xs text-destructive">
+                  {mutationError}
+                </p>
+              )}
               {panelMode === "view" ? (
                 <>
+                  <Button
+                    variant="outline"
+                    onClick={handleSupporterDelete}
+                    className="font-body px-5 h-9 rounded-xl text-destructive border-destructive/30 hover:bg-destructive/10"
+                    disabled={deleteSupporterMutation.isPending}
+                  >
+                    {deleteSupporterMutation.isPending ? "Deleting..." : "Delete"}
+                  </Button>
                   <Button variant="outline" onClick={closePanel} className="font-body px-5 h-9 rounded-xl">Close</Button>
                   <Button onClick={() => openEdit(panelSupporter!)} className="font-body gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-5 h-9 rounded-xl">
                     <Pencil className="h-4 w-4" /> Edit
@@ -982,8 +1057,17 @@ function DonorsPage() {
               ) : (
                 <>
                   <Button variant="outline" onClick={() => panelMode === "edit" ? setPanelMode("view") : closePanel()} className="font-body px-5 h-9 rounded-xl">Cancel</Button>
-                  <Button type="submit" form="supporter-form" className="font-body bg-primary hover:bg-primary/90 text-primary-foreground px-5 h-9 rounded-xl">
-                    {panelMode === "edit" ? "Save Changes" : "Add Supporter"}
+                  <Button
+                    type="submit"
+                    form="supporter-form"
+                    className="font-body bg-primary hover:bg-primary/90 text-primary-foreground px-5 h-9 rounded-xl"
+                    disabled={saveSupporterMutation.isPending}
+                  >
+                    {saveSupporterMutation.isPending
+                      ? "Saving..."
+                      : panelMode === "edit"
+                        ? "Save Changes"
+                        : "Add Supporter"}
                   </Button>
                 </>
               )}

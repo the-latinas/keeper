@@ -7,11 +7,11 @@ export function useAuth() {
 	return {
 		user,
 		isLoading,
-		isAdmin: user?.roles.includes("Admin") ?? false,
-		isStaff: user?.roles.includes("Staff") ?? false,
-		isDonor: user?.roles.includes("Donor") ?? false,
+		isAdmin: user?.roles?.includes("Admin") ?? false,
+		isStaff: user?.roles?.includes("Staff") ?? false,
+		isDonor: user?.roles?.includes("Donor") ?? false,
 		isStaffOrAdmin: !!(
-			user?.roles.includes("Admin") || user?.roles.includes("Staff")
+			user?.roles?.includes("Admin") || user?.roles?.includes("Staff")
 		),
 	};
 }

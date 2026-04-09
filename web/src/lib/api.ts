@@ -74,3 +74,47 @@ export async function apiPostJson<T = void>(
 	if (res.status === 204) return undefined as T;
 	return res.json() as Promise<T>;
 }
+
+export async function apiPutJson<T = void>(
+	path: string,
+	body?: unknown,
+	init?: RequestInit,
+): Promise<T> {
+	const baseUrl = getApiBaseUrl();
+	if (!baseUrl) {
+		throw new Error("API base URL not configured");
+	}
+	const url = `${baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
+	const headers = new Headers(init?.headers);
+	headers.set("Content-Type", "application/json");
+	const res = await fetch(url, {
+		...init,
+		method: "PUT",
+		credentials: "include",
+		headers,
+		body: body !== undefined ? JSON.stringify(body) : undefined,
+	});
+	if (!res.ok) {
+		const text = await res.text();
+		throw new Error(text || `Request failed: ${res.status} ${res.statusText}`);
+	}
+	if (res.status === 204) return undefined as T;
+	return res.json() as Promise<T>;
+}
+
+export async function apiDelete(path: string, init?: RequestInit): Promise<void> {
+	const baseUrl = getApiBaseUrl();
+	if (!baseUrl) {
+		throw new Error("API base URL not configured");
+	}
+	const url = `${baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
+	const res = await fetch(url, {
+		...init,
+		method: "DELETE",
+		credentials: "include",
+	});
+	if (!res.ok) {
+		const text = await res.text();
+		throw new Error(text || `Request failed: ${res.status} ${res.statusText}`);
+	}
+}

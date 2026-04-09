@@ -360,6 +360,78 @@ public class AdminDataController : ControllerBase
         }
     }
 
+    [HttpPut("process-recordings/{id:int}")]
+    public async Task<IActionResult> UpdateProcessRecording(
+        [FromRoute] int id,
+        [FromBody] UpdateProcessRecordingRequest body,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            var rowsAffected = await _db.Database.ExecuteSqlInterpolatedAsync(
+                $"""
+                UPDATE process_recordings
+                SET
+                    session_date = {body.session_date},
+                    social_worker = {body.social_worker},
+                    session_type = {body.session_type},
+                    emotional_state_observed = {body.emotional_state},
+                    session_narrative = {body.narrative_summary},
+                    interventions_applied = {body.interventions},
+                    follow_up_actions = {body.follow_up_actions}
+                WHERE recording_id = {id}
+                """,
+                ct
+            );
+
+            if (rowsAffected == 0)
+            {
+                return NotFound(new { error = "Process recording not found." });
+            }
+
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update process recording {RecordingId}.", id);
+            return StatusCode(
+                StatusCodes.Status500InternalServerError,
+                new { error = "Failed to update process recording." }
+            );
+        }
+    }
+
+    [HttpDelete("process-recordings/{id:int}")]
+    public async Task<IActionResult> DeleteProcessRecording([FromRoute] int id, CancellationToken ct)
+    {
+        try
+        {
+            var rowsAffected = await _db.Database.ExecuteSqlInterpolatedAsync(
+                $"""
+                DELETE FROM process_recordings
+                WHERE recording_id = {id}
+                """,
+                ct
+            );
+
+            if (rowsAffected == 0)
+            {
+                return NotFound(new { error = "Process recording not found." });
+            }
+
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete process recording {RecordingId}.", id);
+            return StatusCode(
+                StatusCodes.Status500InternalServerError,
+                new { error = "Failed to delete process recording." }
+            );
+        }
+    }
+
     [HttpGet("home-visitations")]
     public async Task<ActionResult<IReadOnlyList<HomeVisitationRow>>> GetHomeVisitations(
         [FromQuery] int? residentId,
@@ -724,6 +796,17 @@ public class AdminDataController : ControllerBase
     public sealed class CreateProcessRecordingRequest
     {
         public int resident_id { get; set; }
+        public string session_date { get; set; } = string.Empty;
+        public string social_worker { get; set; } = string.Empty;
+        public string session_type { get; set; } = "individual";
+        public string emotional_state { get; set; } = string.Empty;
+        public string narrative_summary { get; set; } = string.Empty;
+        public string interventions { get; set; } = string.Empty;
+        public string follow_up_actions { get; set; } = string.Empty;
+    }
+
+    public sealed class UpdateProcessRecordingRequest
+    {
         public string session_date { get; set; } = string.Empty;
         public string social_worker { get; set; } = string.Empty;
         public string session_type { get; set; } = "individual";

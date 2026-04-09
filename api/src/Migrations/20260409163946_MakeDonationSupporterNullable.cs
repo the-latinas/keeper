@@ -16,7 +16,8 @@ namespace api.Migrations
                 type: "int",
                 nullable: true,
                 oldClrType: typeof(int),
-                oldType: "int");
+                oldType: "int"
+            );
         }
 
         /// <inheritdoc />
@@ -30,7 +31,8 @@ namespace api.Migrations
                 defaultValue: 0,
                 oldClrType: typeof(int),
                 oldType: "int",
-                oldNullable: true);
+                oldNullable: true
+            );
         }
     }
 }
