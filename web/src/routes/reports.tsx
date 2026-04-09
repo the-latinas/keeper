@@ -271,7 +271,7 @@ function ReportsPage() {
     <div className="min-h-screen bg-background font-body">
       <AdminSidebar user={user ?? null} />
 
-      <main className="ml-64 p-8">
+      <main className="md:ml-64 p-4 md:p-8">
         {/* ── Page header ─────────────────────────────────────────────────── */}
         <div className="flex items-start justify-between mb-8">
           <div>
@@ -318,7 +318,7 @@ function ReportsPage() {
             </span>
           </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Total Beneficiaries */}
             <div className="bg-card rounded-2xl border border-border p-5">
               <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-primary/10 text-primary mb-3">
@@ -385,7 +385,7 @@ function ReportsPage() {
           </div>
 
           {/* AAR service totals row */}
-          <div className="mt-4 grid grid-cols-3 gap-3 text-center">
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-center">
             {[
               {
                 label: "Total Services Rendered",

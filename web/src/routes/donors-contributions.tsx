@@ -560,7 +560,7 @@ function DonorsPage() {
     return (
       <div className="space-y-1 pb-6">
         <SectionDivider label="Profile" />
-        <div className="grid grid-cols-2 gap-x-6 gap-y-3 pt-1 pb-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 pt-1 pb-3">
           <ViewField label="Full Name / Org" value={s.is_anonymous ? "Anonymous" : s.name} />
           <ViewField label="Organization" value={s.organization} />
           <ViewField label="Email" value={s.email} />
@@ -630,7 +630,7 @@ function DonorsPage() {
     return (
       <form id="supporter-form" onSubmit={handleSupporterSave} className="space-y-1 pb-6">
         <SectionDivider label="Identity" />
-        <div className="grid grid-cols-2 gap-x-4 gap-y-3 pt-1 pb-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3 pt-1 pb-3">
           <div className="col-span-2 space-y-1.5">
             <Label className="font-body text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Name <span className="text-red-500">*</span>
@@ -664,7 +664,7 @@ function DonorsPage() {
         </div>
 
         <SectionDivider label="Classification" />
-        <div className="grid grid-cols-2 gap-x-4 gap-y-3 pt-1 pb-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3 pt-1 pb-3">
           <div className="space-y-1.5">
             <Label className="font-body text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Supporter Type <span className="text-red-500">*</span>
@@ -857,7 +857,7 @@ function DonorsPage() {
     <div className="min-h-screen bg-background font-body">
       <AdminSidebar user={user ?? null} />
 
-      <main className="ml-64 p-8">
+      <main className="md:ml-64 p-4 md:p-8">
         {/* Header */}
         <div className="flex items-start justify-between mb-6">
           <div>
@@ -913,11 +913,11 @@ function DonorsPage() {
             {/* Filters */}
             <div className="bg-card rounded-2xl border border-border shadow-sm p-4 mb-5">
               <div className="flex flex-wrap gap-3 items-center">
-                <div className="flex-1 min-w-[180px]">
+                <div className="flex-1 min-w-0">
                   <Input placeholder="Search name, email, or organization…" value={supporterFilters.search} onChange={(e) => setSupporterFilters((f) => ({ ...f, search: e.target.value }))} />
                 </div>
                 {([["type", "All Types", SUPPORTER_TYPES], ["status", "All Statuses", SUPPORTER_STATUSES]] as [keyof typeof supporterFilters, string, readonly string[]][]).map(([key, placeholder, opts]) => (
-                  <select key={key} aria-label={placeholder} value={supporterFilters[key]} onChange={(e) => setSupporterFilters((f) => ({ ...f, [key]: e.target.value }))} className="h-9 rounded-3xl border border-transparent bg-input/50 px-3 text-sm font-body text-foreground outline-none focus-visible:border-ring min-w-[150px]">
+                  <select key={key} aria-label={placeholder} value={supporterFilters[key]} onChange={(e) => setSupporterFilters((f) => ({ ...f, [key]: e.target.value }))} className="h-9 rounded-3xl border border-transparent bg-input/50 px-3 text-sm font-body text-foreground outline-none focus-visible:border-ring w-full md:w-auto">
                     <option value="">{placeholder}</option>
                     {opts.map((o) => <option key={o}>{o}</option>)}
                   </select>
@@ -930,43 +930,78 @@ function DonorsPage() {
 
             {/* Table */}
             <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    {["Name", "Type", "Status", "Organization", "Joined", "Contributions", ""].map((h) => (
-                      <TableHead key={h} className="font-body text-xs font-semibold uppercase tracking-wider text-muted-foreground">{h}</TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredSupporters.length === 0 ? (
-                    <TableRow><TableCell colSpan={7} className="text-center py-16 text-muted-foreground font-body text-sm">No supporters match the current filters.</TableCell></TableRow>
-                  ) : (
-                    filteredSupporters.map((s) => (
-                      <TableRow key={s.id} className="hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => openView(s)}>
-                        <TableCell className="font-body text-sm font-medium text-foreground">
-                          {s.is_anonymous ? <span className="text-muted-foreground italic">Anonymous</span> : s.name}
-                        </TableCell>
-                        <TableCell>
-                          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${SUPPORTER_TYPE_COLORS[s.supporter_type as SupporterType]}`}>{s.supporter_type}</span>
-                        </TableCell>
-                        <TableCell>
-                          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${STATUS_COLORS[s.status as SupporterStatus]}`}>{s.status}</span>
-                        </TableCell>
-                        <TableCell className="font-body text-sm text-muted-foreground">{s.organization || "—"}</TableCell>
-                        <TableCell className="font-body text-sm text-muted-foreground">{formatDate(s.joined_date)}</TableCell>
-                        <TableCell className="font-body text-sm text-muted-foreground">
-                          {supporterContribCount(s.id)} total
-                          {supporterTotalMonetary(s.id) > 0 && <span className="ml-1 text-foreground font-medium">· {formatPHP(supporterTotalMonetary(s.id))}</span>}
-                        </TableCell>
-                        <TableCell onClick={(e) => e.stopPropagation()}>
-                          <Button variant="outline" onClick={() => openView(s)} className="font-body text-xs h-7 px-3 rounded-lg">View</Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+              {/* Mobile card view */}
+              <div className="block md:hidden divide-y divide-border">
+                {filteredSupporters.length === 0 ? (
+                  <div className="py-16 text-center text-muted-foreground font-body text-sm">No supporters match the current filters.</div>
+                ) : (
+                  filteredSupporters.map((s) => (
+                    <div key={s.id} className="p-4 cursor-pointer" onClick={() => openView(s)}>
+                      <div className="flex items-start justify-between gap-3 mb-2">
+                        <p className="font-body text-sm font-medium text-foreground">
+                          {s.is_anonymous ? <span className="italic text-muted-foreground">Anonymous</span> : s.name}
+                        </p>
+                        <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border flex-shrink-0 ${SUPPORTER_TYPE_COLORS[s.supporter_type as SupporterType]}`}>
+                          {s.supporter_type}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${STATUS_COLORS[s.status as SupporterStatus]}`}>{s.status}</span>
+                        <span className="font-body text-xs text-muted-foreground">Joined {formatDate(s.joined_date)}</span>
+                        {supporterTotalMonetary(s.id) > 0 && (
+                          <span className="font-body text-xs font-medium text-foreground">{formatPHP(supporterTotalMonetary(s.id))}</span>
+                        )}
+                      </div>
+                      {s.organization && (
+                        <p className="font-body text-xs text-muted-foreground mt-1">{s.organization}</p>
+                      )}
+                      <div className="mt-3 flex justify-end">
+                        <Button variant="outline" onClick={(e) => { e.stopPropagation(); openView(s); }} className="font-body text-xs h-7 px-3 rounded-lg">View</Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              {/* Desktop table */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      {["Name", "Type", "Status", "Organization", "Joined", "Contributions", ""].map((h) => (
+                        <TableHead key={h} className="font-body text-xs font-semibold uppercase tracking-wider text-muted-foreground">{h}</TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredSupporters.length === 0 ? (
+                      <TableRow><TableCell colSpan={7} className="text-center py-16 text-muted-foreground font-body text-sm">No supporters match the current filters.</TableCell></TableRow>
+                    ) : (
+                      filteredSupporters.map((s) => (
+                        <TableRow key={s.id} className="hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => openView(s)}>
+                          <TableCell className="font-body text-sm font-medium text-foreground">
+                            {s.is_anonymous ? <span className="text-muted-foreground italic">Anonymous</span> : s.name}
+                          </TableCell>
+                          <TableCell>
+                            <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${SUPPORTER_TYPE_COLORS[s.supporter_type as SupporterType]}`}>{s.supporter_type}</span>
+                          </TableCell>
+                          <TableCell>
+                            <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${STATUS_COLORS[s.status as SupporterStatus]}`}>{s.status}</span>
+                          </TableCell>
+                          <TableCell className="font-body text-sm text-muted-foreground">{s.organization || "—"}</TableCell>
+                          <TableCell className="font-body text-sm text-muted-foreground">{formatDate(s.joined_date)}</TableCell>
+                          <TableCell className="font-body text-sm text-muted-foreground">
+                            {supporterContribCount(s.id)} total
+                            {supporterTotalMonetary(s.id) > 0 && <span className="ml-1 text-foreground font-medium">· {formatPHP(supporterTotalMonetary(s.id))}</span>}
+                          </TableCell>
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            <Button variant="outline" onClick={() => openView(s)} className="font-body text-xs h-7 px-3 rounded-lg">View</Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
           </>
         )}
@@ -1015,18 +1050,18 @@ function DonorsPage() {
             {/* Filters */}
             <div className="bg-card rounded-2xl border border-border shadow-sm p-4 mb-5">
               <div className="flex flex-wrap gap-3 items-center">
-                <div className="flex-1 min-w-[180px]">
+                <div className="flex-1 min-w-0">
                   <Input placeholder="Search by supporter name…" value={contribFilters.search} onChange={(e) => setContribFilters((f) => ({ ...f, search: e.target.value }))} />
                 </div>
-                <select aria-label="Filter by contribution type" value={contribFilters.type} onChange={(e) => setContribFilters((f) => ({ ...f, type: e.target.value }))} className="h-9 rounded-3xl border border-transparent bg-input/50 px-3 text-sm font-body text-foreground outline-none focus-visible:border-ring min-w-[160px]">
+                <select aria-label="Filter by contribution type" value={contribFilters.type} onChange={(e) => setContribFilters((f) => ({ ...f, type: e.target.value }))} className="h-9 rounded-3xl border border-transparent bg-input/50 px-3 text-sm font-body text-foreground outline-none focus-visible:border-ring w-full md:w-auto">
                   <option value="">All Types</option>
                   {CONTRIBUTION_TYPES.map((t) => <option key={t}>{t}</option>)}
                 </select>
-                <select aria-label="Filter by safehouse" value={contribFilters.safehouse} onChange={(e) => setContribFilters((f) => ({ ...f, safehouse: e.target.value }))} className="h-9 rounded-3xl border border-transparent bg-input/50 px-3 text-sm font-body text-foreground outline-none focus-visible:border-ring min-w-[160px]">
+                <select aria-label="Filter by safehouse" value={contribFilters.safehouse} onChange={(e) => setContribFilters((f) => ({ ...f, safehouse: e.target.value }))} className="h-9 rounded-3xl border border-transparent bg-input/50 px-3 text-sm font-body text-foreground outline-none focus-visible:border-ring w-full md:w-auto">
                   <option value="">All Safehouses</option>
                   {SAFEHOUSES.map((s) => <option key={s}>{s}</option>)}
                 </select>
-                <select aria-label="Filter by program" value={contribFilters.program} onChange={(e) => setContribFilters((f) => ({ ...f, program: e.target.value }))} className="h-9 rounded-3xl border border-transparent bg-input/50 px-3 text-sm font-body text-foreground outline-none focus-visible:border-ring min-w-[160px]">
+                <select aria-label="Filter by program" value={contribFilters.program} onChange={(e) => setContribFilters((f) => ({ ...f, program: e.target.value }))} className="h-9 rounded-3xl border border-transparent bg-input/50 px-3 text-sm font-body text-foreground outline-none focus-visible:border-ring w-full md:w-auto">
                   <option value="">All Programs</option>
                   {PROGRAMS.map((p) => <option key={p}>{p}</option>)}
                 </select>
@@ -1038,54 +1073,90 @@ function DonorsPage() {
 
             {/* Contributions table */}
             <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    {["Date", "Supporter", "Type", "Amount / Description", "Allocation", "Receipt #", "Actions"].map((h) => (
-                      <TableHead key={h} className="font-body text-xs font-semibold uppercase tracking-wider text-muted-foreground">{h}</TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredContributions.length === 0 ? (
-                    <TableRow><TableCell colSpan={7} className="text-center py-16 text-muted-foreground font-body text-sm">No contributions match the current filters.</TableCell></TableRow>
-                  ) : (
-                    filteredContributions.map((c) => (
-                      <TableRow key={c.id} className="hover:bg-muted/30 transition-colors">
-                        <TableCell className="font-body text-sm text-muted-foreground whitespace-nowrap">{formatDate(c.date)}</TableCell>
-                        <TableCell className="font-body text-sm font-medium text-foreground">{c.supporter_name || "—"}</TableCell>
-                        <TableCell>
-                          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${CONTRIBUTION_TYPE_COLORS[c.contribution_type as ContributionType]}`}>{c.contribution_type}</span>
-                        </TableCell>
-                        <TableCell className="font-body text-sm text-foreground max-w-[220px]">{contribDescription(c)}</TableCell>
-                        <TableCell className="font-body text-xs text-muted-foreground">
-                          {[c.allocation_safehouse, c.allocation_program].filter(Boolean).join(" / ") || "—"}
-                        </TableCell>
-                        <TableCell className="font-body text-xs text-muted-foreground font-mono">{c.receipt_number || "—"}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => openEditContrib(c)}
-                              className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                              aria-label="Edit contribution"
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteContrib(c.id)}
-                              disabled={deleteContribMutation.isPending}
-                              className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                              aria-label="Delete contribution"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+              {/* Mobile card view */}
+              <div className="block md:hidden divide-y divide-border">
+                {filteredContributions.length === 0 ? (
+                  <div className="py-16 text-center text-muted-foreground font-body text-sm">No contributions match the current filters.</div>
+                ) : (
+                  filteredContributions.map((c) => (
+                    <div key={c.id} className="p-4">
+                      <div className="flex items-start justify-between gap-3 mb-1">
+                        <p className="font-body text-sm font-medium text-foreground">{c.supporter_name || "—"}</p>
+                        <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border flex-shrink-0 ${CONTRIBUTION_TYPE_COLORS[c.contribution_type as ContributionType]}`}>
+                          {c.contribution_type}
+                        </span>
+                      </div>
+                      <p className="font-body text-sm text-foreground mb-1">{contribDescription(c)}</p>
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                        <span>{formatDate(c.date)}</span>
+                        {(c.allocation_safehouse || c.allocation_program) && (
+                          <span>→ {[c.allocation_safehouse, c.allocation_program].filter(Boolean).join(" / ")}</span>
+                        )}
+                        {c.receipt_number && <span className="font-mono">{c.receipt_number}</span>}
+                      </div>
+                      <div className="mt-3 flex justify-end gap-1">
+                        <button onClick={() => openEditContrib(c)} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" aria-label="Edit contribution">
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        <button onClick={() => handleDeleteContrib(c.id)} disabled={deleteContribMutation.isPending} className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors" aria-label="Delete contribution">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              {/* Desktop table */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      {["Date", "Supporter", "Type", "Amount / Description", "Allocation", "Receipt #", "Actions"].map((h) => (
+                        <TableHead key={h} className="font-body text-xs font-semibold uppercase tracking-wider text-muted-foreground">{h}</TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredContributions.length === 0 ? (
+                      <TableRow><TableCell colSpan={7} className="text-center py-16 text-muted-foreground font-body text-sm">No contributions match the current filters.</TableCell></TableRow>
+                    ) : (
+                      filteredContributions.map((c) => (
+                        <TableRow key={c.id} className="hover:bg-muted/30 transition-colors">
+                          <TableCell className="font-body text-sm text-muted-foreground whitespace-nowrap">{formatDate(c.date)}</TableCell>
+                          <TableCell className="font-body text-sm font-medium text-foreground">{c.supporter_name || "—"}</TableCell>
+                          <TableCell>
+                            <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${CONTRIBUTION_TYPE_COLORS[c.contribution_type as ContributionType]}`}>{c.contribution_type}</span>
+                          </TableCell>
+                          <TableCell className="font-body text-sm text-foreground max-w-[220px]">{contribDescription(c)}</TableCell>
+                          <TableCell className="font-body text-xs text-muted-foreground">
+                            {[c.allocation_safehouse, c.allocation_program].filter(Boolean).join(" / ") || "—"}
+                          </TableCell>
+                          <TableCell className="font-body text-xs text-muted-foreground font-mono">{c.receipt_number || "—"}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => openEditContrib(c)}
+                                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                aria-label="Edit contribution"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteContrib(c.id)}
+                                disabled={deleteContribMutation.isPending}
+                                className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                aria-label="Delete contribution"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
           </>
         )}
@@ -1095,7 +1166,7 @@ function DonorsPage() {
       {panelMode !== null && (
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 animate-in fade-in duration-200" onClick={closePanel} />
-          <div className="fixed inset-y-0 right-0 w-[520px] bg-background border-l border-border shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300 ease-out">
+          <div className="fixed inset-y-0 right-0 w-full md:w-[520px] bg-background border-l border-border shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300 ease-out">
             <div className="flex items-start justify-between p-6 border-b border-border flex-shrink-0">
               <div>
                 <p className="font-body text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-0.5">
