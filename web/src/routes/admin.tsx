@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import type { Activity } from "@/components/admin/ActivityFeed";
 import ActivityFeed from "@/components/admin/ActivityFeed";
+import { apiGetJson, getApiBaseUrl } from "@/lib/api";
 import type {
 	Donation,
 	Resident,
@@ -29,56 +30,37 @@ function AdminDashboard() {
 	const { data: residents = [], isLoading: residentsLoading } = useQuery<
 		Resident[]
 	>({
-		queryKey: ["residents"],
+		queryKey: ["admin", "residents"],
 		queryFn: async () => {
-			// TODO: Call your C# API endpoint
-			// const res = await fetch(`${API_BASE}/residents`);
-			// return res.json();
-			return [];
+			if (!getApiBaseUrl()) return [];
+			return apiGetJson<Resident[]>("/api/admin/residents");
 		},
 	});
 
 	const { data: donations = [], isLoading: donationsLoading } = useQuery<
 		Donation[]
 	>({
-		queryKey: ["donations"],
+		queryKey: ["admin", "donations", "recent"],
 		queryFn: async () => {
-			// TODO: Call your C# API endpoint
-			// const res = await fetch(`${API_BASE}/donations`);
-			// return res.json();
-			return [];
+			if (!getApiBaseUrl()) return [];
+			return apiGetJson<Donation[]>("/api/admin/donations/recent?take=500");
 		},
 	});
 
 	const { data: safehouses = [], isLoading: safehousesLoading } = useQuery<
 		Safehouse[]
 	>({
-		queryKey: ["safehouses"],
+		queryKey: ["admin", "safehouses"],
 		queryFn: async () => {
-			// TODO: Call your C# API endpoint
-			// const res = await fetch(`${API_BASE}/safehouses`);
-			// return res.json();
-			return [];
+			if (!getApiBaseUrl()) return [];
+			return apiGetJson<Safehouse[]>("/api/admin/safehouses");
 		},
 	});
 
-	const { data: activities = [], isLoading: activitiesLoading } = useQuery<
-		Activity[]
-	>({
-		queryKey: ["activities"],
-		queryFn: async () => {
-			// TODO: Call your C# API endpoint
-			// const res = await fetch(`${API_BASE}/activities`);
-			// return res.json();
-			return [];
-		},
-	});
+	/** Placeholder until quick actions / audit feed are wired. */
+	const activities: Activity[] = [];
 
-	const loading =
-		residentsLoading ||
-		donationsLoading ||
-		safehousesLoading ||
-		activitiesLoading;
+	const loading = residentsLoading || donationsLoading || safehousesLoading;
 
 	if (loading) {
 		return (
