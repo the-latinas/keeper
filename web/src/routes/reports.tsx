@@ -20,35 +20,35 @@ import {
 } from "recharts";
 import type { PieLabelRenderProps } from "recharts";
 import {
-	BookOpen,
-	FileText,
-	Heart,
-	Home,
-	TrendingUp,
-	Users,
+  BookOpen,
+  FileText,
+  Heart,
+  Home,
+  TrendingUp,
+  Users,
 } from "lucide-react";
 import { requireRole } from "@/lib/auth";
 
 export const Route = createFileRoute("/reports")({
-	beforeLoad: async ({ context }) => {
-		await requireRole(context.queryClient, "Admin", "Staff");
-	},
-	component: ReportsPage,
+  beforeLoad: async ({ context }) => {
+    await requireRole(context.queryClient, "Admin", "Staff");
+  },
+  component: ReportsPage,
 });
 
 // ─── Chart theme ──────────────────────────────────────────────────────────────
 
 const GRID_COLOR = "hsl(40,15%,88%)";
 const TICK_STYLE = {
-	fontSize: 11,
-	fontFamily: "Inter",
-	fill: "hsl(210,10%,45%)",
+  fontSize: 11,
+  fontFamily: "Inter",
+  fill: "hsl(210,10%,45%)",
 };
 const TOOLTIP_STYLE = {
-	borderRadius: "12px",
-	border: "1px solid hsl(40,15%,88%)",
-	fontFamily: "Inter",
-	fontSize: 12,
+  borderRadius: "12px",
+  border: "1px solid hsl(40,15%,88%)",
+  fontFamily: "Inter",
+  fontSize: 12,
 };
 
 const C_PRIMARY = "hsl(174, 62%, 28%)"; // teal
@@ -69,7 +69,12 @@ type ReportsSummary = {
     graduated: number;
   }[];
   reintegrationOutcomes: { label: string; value: number }[];
-  servicesByQuarter: { quarter: string; caring: number; healing: number; teaching: number }[];
+  servicesByQuarter: {
+    quarter: string;
+    caring: number;
+    healing: number;
+    teaching: number;
+  }[];
   caseCategories: { label: string; value: number }[];
   outcomeIndicators: { label: string; pct: number }[];
 };
@@ -87,59 +92,59 @@ type ReportsMlAggregate = {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatPHP(v: number) {
-	if (v >= 1000000) return `₱${(v / 1000000).toFixed(1)}M`;
-	if (v >= 1000) return `₱${(v / 1000).toFixed(0)}k`;
-	return `₱${v}`;
+  if (v >= 1000000) return `₱${(v / 1000000).toFixed(1)}M`;
+  if (v >= 1000) return `₱${(v / 1000).toFixed(0)}k`;
+  return `₱${v}`;
 }
 
 function SectionHeader({
-	title,
-	subtitle,
+  title,
+  subtitle,
 }: {
-	title: string;
-	subtitle?: string;
+  title: string;
+  subtitle?: string;
 }) {
-	return (
-		<div className="mb-5">
-			<h2 className="font-heading text-xl font-bold text-foreground">
-				{title}
-			</h2>
-			{subtitle && (
-				<p className="font-body text-sm text-muted-foreground mt-0.5">
-					{subtitle}
-				</p>
-			)}
-		</div>
-	);
+  return (
+    <div className="mb-5">
+      <h2 className="font-heading text-xl font-bold text-foreground">
+        {title}
+      </h2>
+      {subtitle && (
+        <p className="font-body text-sm text-muted-foreground mt-0.5">
+          {subtitle}
+        </p>
+      )}
+    </div>
+  );
 }
 
 // ─── Custom Pie label ─────────────────────────────────────────────────────────
 
 function PieLabel({
-	cx = 0,
-	cy = 0,
-	midAngle = 0,
-	innerRadius = 0,
-	outerRadius = 0,
-	percent = 0,
+  cx = 0,
+  cy = 0,
+  midAngle = 0,
+  innerRadius = 0,
+  outerRadius = 0,
+  percent = 0,
 }: PieLabelRenderProps) {
-	const RADIAN = Math.PI / 180;
-	const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-	const x = cx + radius * Math.cos(-midAngle * RADIAN);
-	const y = cy + radius * Math.sin(-midAngle * RADIAN);
-	if (percent < 0.07) return null;
-	return (
-		<text
-			x={x}
-			y={y}
-			fill="white"
-			textAnchor="middle"
-			dominantBaseline="central"
-			style={{ fontSize: 12, fontFamily: "Inter", fontWeight: 600 }}
-		>
-			{`${(percent * 100).toFixed(0)}%`}
-		</text>
-	);
+  const RADIAN = Math.PI / 180;
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+  const x = cx + radius * Math.cos(-midAngle * RADIAN);
+  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+  if (percent < 0.07) return null;
+  return (
+    <text
+      x={x}
+      y={y}
+      fill="white"
+      textAnchor="middle"
+      dominantBaseline="central"
+      style={{ fontSize: 12, fontFamily: "Inter", fontWeight: 600 }}
+    >
+      {`${(percent * 100).toFixed(0)}%`}
+    </text>
+  );
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -157,7 +162,9 @@ function ReportsPage() {
   const { data: reportsSummary } = useQuery({
     queryKey: ["reports-summary", reportYear],
     queryFn: () =>
-      apiGetJson<ReportsSummary>(`/api/admin-data/reports-summary?year=${reportYear}`),
+      apiGetJson<ReportsSummary>(
+        `/api/admin-data/reports-summary?year=${reportYear}`
+      ),
     staleTime: 60_000,
     retry: false,
   });
@@ -175,71 +182,72 @@ function ReportsPage() {
   // ── ML Predictions (single server-side aggregate; social remains sample) ──────
   const ML_HEADERS = { "Content-Type": "application/json" };
 
-  const {
-    data: mlAggregate,
-    isLoading: mlAggregateLoading,
-  } = useQuery({
+  const { data: mlAggregate, isLoading: mlAggregateLoading } = useQuery({
     queryKey: ["admin", "ml", "reports-aggregate"],
-    queryFn: () => apiGetJson<ReportsMlAggregate>("/api/admin/ml/reports-aggregate"),
+    queryFn: () =>
+      apiGetJson<ReportsMlAggregate>("/api/admin/ml/reports-aggregate"),
     staleTime: 60_000,
     retry: false,
   });
 
-  const { data: mlSocialEngagement, isLoading: socialEngagementLoading } = useQuery({
-    queryKey: ["ml", "social", "sample"],
-    queryFn: () =>
-      apiGetJson<{ predicted_engagement_rate: number }>(
-        "/api/ml/social/predict",
-        {
-          method: "POST",
-          headers: ML_HEADERS,
-          body: JSON.stringify({
-            caption_length: 180,
-            num_hashtags: 5,
-            boost_budget_php: 0,
-            follower_count_at_post: 3500,
-            post_hour: 10,
-            has_call_to_action: 1,
-            is_boosted: 0,
-            platform: "Facebook",
-            post_type: "Photo",
-            media_type: "Image",
-            content_topic: "Impact Story",
-            sentiment_tone: "Inspirational",
-            post_dow: "Tuesday",
-            call_to_action_type: "Donate",
-          }),
-        }
-      ),
-    staleTime: Infinity,
-    retry: false,
-  });
+  const { data: mlSocialEngagement, isLoading: socialEngagementLoading } =
+    useQuery({
+      queryKey: ["ml", "social", "sample"],
+      queryFn: () =>
+        apiGetJson<{ predicted_engagement_rate: number }>(
+          "/api/ml/social/predict",
+          {
+            method: "POST",
+            headers: ML_HEADERS,
+            body: JSON.stringify({
+              caption_length: 180,
+              num_hashtags: 5,
+              boost_budget_php: 0,
+              follower_count_at_post: 3500,
+              post_hour: 10,
+              has_call_to_action: 1,
+              is_boosted: 0,
+              platform: "Facebook",
+              post_type: "Photo",
+              media_type: "Image",
+              content_topic: "Impact Story",
+              sentiment_tone: "Inspirational",
+              post_dow: "Tuesday",
+              call_to_action_type: "Donate",
+            }),
+          }
+        ),
+      staleTime: Infinity,
+      retry: false,
+    });
 
   const { data: mlSocialCausal, isLoading: socialCausalLoading } = useQuery({
     queryKey: ["ml", "social-causal", "sample"],
     queryFn: () =>
-      apiGetJson<{ estimated_ite: number; p_outcome_if_boosted: number; p_outcome_if_not_boosted: number; ate: number }>(
-        "/api/ml/social/causal/predict",
-        {
-          method: "POST",
-          headers: ML_HEADERS,
-          body: JSON.stringify({
-            caption_length: 180,
-            num_hashtags: 5,
-            follower_count_at_post: 3500,
-            post_hour: 10,
-            has_call_to_action: 1,
-            boost_budget_php: 500,
-            platform: "Facebook",
-            post_type: "Photo",
-            media_type: "Image",
-            content_topic: "Impact Story",
-            sentiment_tone: "Inspirational",
-            post_dow: "Tuesday",
-            call_to_action_type: "Donate",
-          }),
-        }
-      ),
+      apiGetJson<{
+        estimated_ite: number;
+        p_outcome_if_boosted: number;
+        p_outcome_if_not_boosted: number;
+        ate: number;
+      }>("/api/ml/social/causal/predict", {
+        method: "POST",
+        headers: ML_HEADERS,
+        body: JSON.stringify({
+          caption_length: 180,
+          num_hashtags: 5,
+          follower_count_at_post: 3500,
+          post_hour: 10,
+          has_call_to_action: 1,
+          boost_budget_php: 500,
+          platform: "Facebook",
+          post_type: "Photo",
+          media_type: "Image",
+          content_topic: "Impact Story",
+          sentiment_tone: "Inspirational",
+          post_dow: "Tuesday",
+          call_to_action_type: "Donate",
+        }),
+      }),
     staleTime: Infinity,
     retry: false,
   });
@@ -713,7 +721,6 @@ function ReportsPage() {
             subtitle="Live donor and resident aggregates; social cards remain sample previews"
           />
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-
             {/* Donor Retention Score */}
             <div className="bg-card rounded-2xl border border-border shadow-sm p-5 flex flex-col gap-3">
               <div className="flex items-center justify-between">
@@ -735,8 +742,8 @@ function ReportsPage() {
                         mlAggregate.donor_lapse_pct < 25
                           ? C_GREEN
                           : mlAggregate.donor_lapse_pct < 40
-                          ? C_YELLOW
-                          : "hsl(0,72%,51%)",
+                            ? C_YELLOW
+                            : "hsl(0,72%,51%)",
                     }}
                   >
                     {Math.round(mlAggregate.donor_lapse_pct)}%
@@ -746,7 +753,9 @@ function ReportsPage() {
                   </div>
                 </>
               ) : (
-                <div className="font-body text-xs text-muted-foreground">ML service offline</div>
+                <div className="font-body text-xs text-muted-foreground">
+                  ML service offline
+                </div>
               )}
             </div>
 
@@ -765,14 +774,18 @@ function ReportsPage() {
               ) : mlAggregate && !mlAggregate.ml_offline ? (
                 <>
                   <div className="font-heading text-3xl font-bold text-foreground">
-                    {formatPHP(Math.round(mlAggregate.donor_avg_predicted_giving))}
+                    {formatPHP(
+                      Math.round(mlAggregate.donor_avg_predicted_giving)
+                    )}
                   </div>
                   <div className="font-body text-xs text-muted-foreground">
                     Average predicted lifetime giving
                   </div>
                 </>
               ) : (
-                <div className="font-body text-xs text-muted-foreground">ML service offline</div>
+                <div className="font-body text-xs text-muted-foreground">
+                  ML service offline
+                </div>
               )}
             </div>
 
@@ -792,14 +805,19 @@ function ReportsPage() {
                 <>
                   <div className="font-heading text-3xl font-bold text-foreground">
                     {Math.round(mlAggregate.resident_avg_progress)}
-                    <span className="font-body text-base font-normal text-muted-foreground">/100</span>
+                    <span className="font-body text-base font-normal text-muted-foreground">
+                      /100
+                    </span>
                   </div>
                   <div className="font-body text-xs text-muted-foreground">
-                    Average predicted resident progress · {mlAggregate.resident_total} scored
+                    Average predicted resident progress ·{" "}
+                    {mlAggregate.resident_total} scored
                   </div>
                 </>
               ) : (
-                <div className="font-body text-xs text-muted-foreground">ML service offline</div>
+                <div className="font-body text-xs text-muted-foreground">
+                  ML service offline
+                </div>
               )}
             </div>
 
@@ -833,7 +851,9 @@ function ReportsPage() {
                   </div>
                 </>
               ) : (
-                <div className="font-body text-xs text-muted-foreground">ML service offline</div>
+                <div className="font-body text-xs text-muted-foreground">
+                  ML service offline
+                </div>
               )}
             </div>
 
@@ -852,15 +872,21 @@ function ReportsPage() {
               ) : mlSocialEngagement ? (
                 <>
                   <div className="font-heading text-3xl font-bold text-foreground">
-                    {(mlSocialEngagement.predicted_engagement_rate * 100).toFixed(1)}
-                    <span className="font-body text-base font-normal text-muted-foreground">%</span>
+                    {(
+                      mlSocialEngagement.predicted_engagement_rate * 100
+                    ).toFixed(1)}
+                    <span className="font-body text-base font-normal text-muted-foreground">
+                      %
+                    </span>
                   </div>
                   <div className="font-body text-xs text-muted-foreground">
                     Predicted post engagement · connect DB to optimize all posts
                   </div>
                 </>
               ) : (
-                <div className="font-body text-xs text-muted-foreground">ML service offline</div>
+                <div className="font-body text-xs text-muted-foreground">
+                  ML service offline
+                </div>
               )}
             </div>
 
@@ -880,37 +906,30 @@ function ReportsPage() {
                 <>
                   <div
                     className="font-heading text-3xl font-bold"
-                    style={{ color: mlSocialCausal.estimated_ite > 0 ? C_GREEN : "hsl(0,72%,51%)" }}
+                    style={{
+                      color:
+                        mlSocialCausal.estimated_ite > 0
+                          ? C_GREEN
+                          : "hsl(0,72%,51%)",
+                    }}
                   >
                     {mlSocialCausal.estimated_ite > 0 ? "+" : ""}
                     {(mlSocialCausal.estimated_ite * 100).toFixed(1)}
-                    <span className="font-body text-base font-normal text-muted-foreground">%</span>
+                    <span className="font-body text-base font-normal text-muted-foreground">
+                      %
+                    </span>
                   </div>
                   <div className="font-body text-xs text-muted-foreground">
-                    Est. gift-referral lift from boosting · connect DB to rank posts worth boosting
+                    Est. gift-referral lift from boosting · connect DB to rank
+                    posts worth boosting
                   </div>
                 </>
               ) : (
-                <div className="font-body text-xs text-muted-foreground">ML service offline</div>
+                <div className="font-body text-xs text-muted-foreground">
+                  ML service offline
+                </div>
               )}
             </div>
-
-          </div>
-        </div>
-
-        <div className="bg-muted/50 rounded-2xl border border-border p-5 flex items-start gap-3 print:hidden">
-          <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="font-body text-sm font-medium text-foreground mb-0.5">
-              Live Data Source
-            </p>
-            <p className="font-body text-xs text-muted-foreground leading-relaxed">
-              Charts are loaded from
-              <code className="font-mono bg-muted px-1 rounded mx-1">
-                /api/admin-data/reports-summary?year=
-              </code>
-              and update when you change the selected year.
-            </p>
           </div>
         </div>
       </main>
