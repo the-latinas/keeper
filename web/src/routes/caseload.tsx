@@ -344,11 +344,13 @@ function CaseloadPage() {
 	error: residentsError,
   } = useQuery<ResidentApi[]>({
 	queryKey: ["admin", "caseload", "residents"],
+	staleTime: 60_000,
 	queryFn: () => apiGetJson<ResidentApi[]>("/api/admin/caseload/residents"),
   });
 
   const { data: safehouses = [] } = useQuery<SafehouseApi[]>({
 	queryKey: ["admin", "safehouses"],
+	staleTime: 60_000,
 	queryFn: () => apiGetJson<SafehouseApi[]>("/api/admin/safehouses"),
   });
 
