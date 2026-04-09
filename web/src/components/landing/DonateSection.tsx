@@ -173,7 +173,7 @@ export default function DonateSection() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
-            onClick={() => setShowConfirm(false)}
+            onClick={() => { if (!submitting) setShowConfirm(false); }}
           >
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
