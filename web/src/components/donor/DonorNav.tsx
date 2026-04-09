@@ -1,17 +1,25 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { LogOut } from "lucide-react";
+import { LogOut, UserIcon } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuGroup,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { logout } from "@/lib/api";
 
-interface User {
+interface DonorUser {
 	username?: string;
 	email?: string;
 	full_name?: string;
 }
 
-export default function DonorNav({ user }: { user: User | null }) {
+export default function DonorNav({ user }: { user: DonorUser | null }) {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 
@@ -36,8 +44,8 @@ export default function DonorNav({ user }: { user: User | null }) {
 					</span>
 				</Link>
 
-				<div className="flex items-center gap-3">
-					<div className="flex items-center gap-3 border-l border-border pl-4">
+				<DropdownMenu>
+					<DropdownMenuTrigger className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-1 transition-colors hover:bg-muted focus:outline-none">
 						<div className="hidden text-right sm:block">
 							<div className="font-body text-sm font-medium text-foreground">
 								{displayName}
@@ -51,17 +59,41 @@ export default function DonorNav({ user }: { user: User | null }) {
 								{initials}
 							</AvatarFallback>
 						</Avatar>
-					</div>
-					<Button
-						variant="ghost"
-						size="icon"
-						onClick={() => signOut()}
-						className="text-muted-foreground hover:text-foreground"
-						aria-label="Sign out"
-					>
-						<LogOut className="h-4 w-4" aria-hidden="true" />
-					</Button>
-				</div>
+					</DropdownMenuTrigger>
+
+					<DropdownMenuContent align="end" sideOffset={8}>
+						<DropdownMenuGroup className="sm:hidden">
+							<DropdownMenuLabel>
+								<div className="font-body text-sm font-medium text-foreground">
+									{displayName}
+								</div>
+								<div className="font-body text-xs text-muted-foreground">
+									{user?.email}
+								</div>
+							</DropdownMenuLabel>
+						</DropdownMenuGroup>
+						<DropdownMenuSeparator className="sm:hidden" />
+
+						<DropdownMenuItem
+							className="focus:bg-muted focus:text-foreground"
+							onClick={() => navigate({ to: "/account" })}
+						>
+							<UserIcon className="h-4 w-4" />
+							Account
+						</DropdownMenuItem>
+
+						<DropdownMenuSeparator />
+
+						<DropdownMenuItem
+							variant="destructive"
+							className="focus:bg-red-50 focus:text-red-600"
+							onClick={() => signOut()}
+						>
+							<LogOut className="h-4 w-4" />
+							Sign Out
+						</DropdownMenuItem>
+					</DropdownMenuContent>
+				</DropdownMenu>
 			</div>
 		</nav>
 	);
