@@ -74,15 +74,14 @@ function AdminDashboard() {
 					safehouses={safehouses}
 				/>
 
-				<div className="mt-8">
-					<CasesTable residents={residents} />
-				</div>
-
-				<div className="grid lg:grid-cols-3 gap-6 mt-6">
-					<div className="lg:col-span-2">
+				<div className="grid lg:grid-cols-3 gap-6 mt-8">
+					<div className="lg:col-span-2 flex flex-col gap-6">
+						<CasesTable residents={residents} />
 						<DonationTrends donations={donations} />
 					</div>
-					<OccupancyList safehouses={safehouses} />
+					<div className="flex flex-col h-full">
+						<OccupancyList safehouses={safehouses} />
+					</div>
 				</div>
 			</main>
 		</div>

@@ -7,7 +7,7 @@ export default function OccupancyList({
 	safehouses: Safehouse[];
 }) {
 	return (
-		<div className="bg-card rounded-2xl border border-border p-6">
+		<div className="bg-card rounded-2xl border border-border p-6 h-full">
 			<h3 className="font-heading text-lg font-semibold text-foreground mb-4">
 				Safehouse Occupancy
 			</h3>
