@@ -70,12 +70,6 @@ export default function Navbar() {
 							About
 						</Link>
 						<Link
-							to="/contact"
-							className="font-body text-sm font-medium text-muted-foreground transition-colors hover:text-yellow-600 [&.active]:font-semibold [&.active]:text-yellow-600"
-						>
-							Contact
-						</Link>
-						<Link
 							to={user ? "/dashboard" : "/login"}
 							className="font-body text-sm font-medium text-muted-foreground transition-colors hover:text-yellow-600 [&.active]:font-semibold [&.active]:text-yellow-600"
 						>
