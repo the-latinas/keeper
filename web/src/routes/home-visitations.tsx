@@ -762,7 +762,7 @@ function HomeVisitationsPage() {
 
   // ── Edit visit form ──────────────────────────────────────────────────────────
 
-  function renderEditVisitForm(v: HomeVisit) {
+  function renderEditVisitForm() {
     return (
       <div className="mt-3 bg-muted/30 rounded-xl border border-border p-4">
         <h4 className="font-heading text-sm font-bold text-foreground mb-3">Edit Visit</h4>
@@ -915,7 +915,7 @@ function HomeVisitationsPage() {
                         </div>
                       )}
                     </div>
-                    {editingVisitId === v.id && renderEditVisitForm(v)}
+                    {editingVisitId === v.id && renderEditVisitForm()}
                   </div>
                 </div>
               ))}
