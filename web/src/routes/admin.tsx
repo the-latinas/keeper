@@ -6,7 +6,6 @@ import AdminSidebar from "@/components/admin/AdminSidebar";
 import CasesTable from "@/components/admin/CasesTable";
 import DonationTrends from "@/components/admin/DonationTrends";
 import OccupancyList from "@/components/admin/OccupancyList";
-import QuickActions from "@/components/admin/QuickActions";
 import { apiGetJson, type AuthMeResponse } from "@/lib/api";
 import { requireRole } from "@/lib/auth";
 
@@ -75,13 +74,8 @@ function AdminDashboard() {
 					safehouses={safehouses}
 				/>
 
-				<div className="grid lg:grid-cols-3 gap-6 mt-8">
-					<div className="lg:col-span-2">
-						<CasesTable residents={residents} />
-					</div>
-					<div className="space-y-6">
-						<QuickActions />
-					</div>
+				<div className="mt-8">
+					<CasesTable residents={residents} />
 				</div>
 
 				<div className="grid lg:grid-cols-3 gap-6 mt-6">
