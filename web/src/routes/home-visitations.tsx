@@ -311,6 +311,7 @@ function HomeVisitationsPage() {
 
   const { data: visits = [] } = useQuery<HomeVisit[]>({
     queryKey: ["home-visitations"],
+    staleTime: 60_000,
     queryFn: async () => {
       const rows = await apiGetJson<HomeVisitApi[]>("/api/admin-data/home-visitations");
       const normalizeVisitType = (value: string): VisitType => {
