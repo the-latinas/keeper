@@ -218,6 +218,19 @@ p {
 }
 
 @media print {
+	@page {
+		size: A4 landscape;
+		margin: 12mm 14mm;
+	}
+
+	/* Preserve chart and card colors exactly */
+	*,
+	*::before,
+	*::after {
+		-webkit-print-color-adjust: exact !important;
+		print-color-adjust: exact !important;
+	}
+
 	/* Hide sidebar and any nav chrome */
 	aside,
 	nav,
@@ -228,10 +241,17 @@ p {
 	/* Remove the left margin added for the sidebar */
 	main {
 		margin-left: 0 !important;
+		padding: 0 !important;
 	}
 
 	/* Avoid page breaks inside cards/charts */
 	.rounded-2xl {
 		break-inside: avoid;
+		box-shadow: none !important;
+	}
+
+	/* Ensure chart containers have a defined width so Recharts SVGs render */
+	.recharts-responsive-container {
+		min-width: 200px !important;
 	}
 }

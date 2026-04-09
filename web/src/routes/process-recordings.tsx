@@ -190,45 +190,6 @@ function ProcessRecordingsPage() {
     },
   });
 
-  const updateRecordingMutation = useMutation({
-    mutationFn: async (payload: {
-      id: number;
-      session_date: string;
-      social_worker: string;
-      session_type: SessionType;
-      emotional_state: string;
-      narrative_summary: string;
-      interventions: string;
-      follow_up_actions: string;
-    }) => {
-      const apiBaseUrl = getApiBaseUrl();
-      if (!apiBaseUrl) throw new Error("API base URL not configured");
-      const response = await fetch(
-        `${apiBaseUrl}/api/admin-data/process-recordings/${payload.id}`,
-        {
-          method: "PUT",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            session_date: payload.session_date,
-            social_worker: payload.social_worker,
-            session_type: payload.session_type,
-            emotional_state: payload.emotional_state,
-            narrative_summary: payload.narrative_summary,
-            interventions: payload.interventions,
-            follow_up_actions: payload.follow_up_actions,
-          }),
-        },
-      );
-      if (!response.ok) throw new Error("Failed to update recording");
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: ["process-recordings", selectedResident?.id ?? null],
-      });
-    },
-  });
-
   const deleteRecordingMutation = useMutation({
     mutationFn: async (id: number) => {
       const apiBaseUrl = getApiBaseUrl();
@@ -295,10 +256,16 @@ function ProcessRecordingsPage() {
       sessionDate: recording.sessionDate,
       socialWorker: recording.socialWorker,
       sessionType: recording.sessionType,
-      emotionalState: recording.emotionalState,
-      narrativeSummary: recording.narrativeSummary,
-      interventions: recording.interventions,
+      sessionDurationMinutes: recording.sessionDurationMinutes,
+      emotionalStateObserved: recording.emotionalStateObserved,
+      emotionalStateEnd: recording.emotionalStateEnd,
+      sessionNarrative: recording.sessionNarrative,
+      interventionsApplied: recording.interventionsApplied,
       followUpActions: recording.followUpActions,
+      progressNoted: recording.progressNoted,
+      concernsFlagged: recording.concernsFlagged,
+      referralMade: recording.referralMade,
+      notesRestricted: recording.notesRestricted,
     });
     setEditingRecordingId(recording.id);
     setShowForm(true);

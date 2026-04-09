@@ -283,7 +283,7 @@ function ReportsPage() {
               format.
             </p>
           </div>
-          <div className="flex items-center gap-3 mt-1">
+          <div className="flex items-center gap-3 mt-1 print:hidden">
             <select
               aria-label="Report year"
               value={reportYear}
@@ -296,8 +296,10 @@ function ReportsPage() {
                 </option>
               ))}
             </select>
-            {/* TODO: Wire to PDF export */}
-            <button className="inline-flex items-center gap-2 h-9 px-4 rounded-3xl border border-border bg-card text-sm font-body text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors">
+            <button
+              onClick={() => window.print()}
+              className="inline-flex items-center gap-2 h-9 px-4 rounded-3xl border border-border bg-card text-sm font-body text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+            >
               <FileText className="h-4 w-4" />
               Export PDF
             </button>
@@ -477,7 +479,7 @@ function ReportsPage() {
               subtitle="Residents admitted, active, and graduated per safehouse"
             />
             <div className="bg-card rounded-2xl border border-border shadow-sm p-6">
-              <ResponsiveContainer width="100%" height={240}>
+              <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={safehousePerformance} barCategoryGap="30%">
                   <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
                   <XAxis
@@ -570,7 +572,7 @@ function ReportsPage() {
               subtitle="Caring, Healing, and Teaching service counts per quarter"
             />
             <div className="bg-card rounded-2xl border border-border shadow-sm p-6">
-              <ResponsiveContainer width="100%" height={240}>
+              <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={servicesByQuarter} barCategoryGap="28%">
                   <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
                   <XAxis
@@ -704,7 +706,7 @@ function ReportsPage() {
         </div>
 
         {/* ── ML Predictions ───────────────────────────────────────────────── */}
-        <div className="mb-8">
+        <div className="mb-8 print:hidden">
           <SectionHeader
             title="ML Predictions"
             subtitle="Live donor and resident aggregates; social cards remain sample previews"
@@ -895,7 +897,7 @@ function ReportsPage() {
           </div>
         </div>
 
-        <div className="bg-muted/50 rounded-2xl border border-border p-5 flex items-start gap-3">
+        <div className="bg-muted/50 rounded-2xl border border-border p-5 flex items-start gap-3 print:hidden">
           <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
           <div>
             <p className="font-body text-sm font-medium text-foreground mb-0.5">

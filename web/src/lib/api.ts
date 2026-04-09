@@ -6,19 +6,20 @@ export function getApiBaseUrl(): string | undefined {
 
 /** Body of GET /api/auth/me (camelCase JSON). */
 export type AuthMeResponse = {
-  email: string;
-  roles: string[];
-  supporterId: number | null;
+	email: string;
+	roles: string[];
+	supporterId: number | null;
 };
 
 export async function logout(): Promise<void> {
-  const apiBaseUrl = getApiBaseUrl();
-  if (!apiBaseUrl) return;
-  const res = await fetch(`${apiBaseUrl}/api/auth/logout`, {
-    method: "POST",
-    credentials: "include",
-  });
-  if (!res.ok) throw new Error(`Logout failed: ${res.status} ${res.statusText}`);
+	const apiBaseUrl = getApiBaseUrl();
+	if (!apiBaseUrl) return;
+	const res = await fetch(`${apiBaseUrl}/api/auth/logout`, {
+		method: "POST",
+		credentials: "include",
+	});
+	if (!res.ok)
+		throw new Error(`Logout failed: ${res.status} ${res.statusText}`);
 }
 
 export async function apiGetJson<T>(

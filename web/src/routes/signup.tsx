@@ -50,13 +50,8 @@ function Signup() {
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 	const signupMutation = useMutation({
-		mutationFn: ({
-			email,
-			password,
-		}: {
-			email: string;
-			password: string;
-		}) => submitSignup({ email, password }),
+		mutationFn: ({ email, password }: { email: string; password: string }) =>
+			submitSignup({ email, password }),
 		onSuccess: async (response) => {
 			if (response.requiresCode) {
 				await navigate({
