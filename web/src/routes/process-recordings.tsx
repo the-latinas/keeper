@@ -180,6 +180,47 @@ function ProcessRecordingsPage() {
     },
   });
 
+  const updateRecordingMutation = useMutation({
+    mutationFn: async ({
+      id,
+      payload,
+    }: {
+      id: number;
+      payload: {
+        resident_id: number;
+        session_date: string;
+        social_worker: string;
+        session_type: SessionType;
+        session_duration_minutes: number;
+        emotional_state_observed: string;
+        emotional_state_end: string;
+        session_narrative: string;
+        interventions_applied: string;
+        follow_up_actions: string;
+        progress_noted: boolean;
+        concerns_flagged: boolean;
+        referral_made: boolean;
+        notes_restricted: string;
+      };
+    }) => {
+      const response = await fetch(
+        resolveApiUrl(`/api/admin-data/process-recordings/${id}`),
+        {
+          method: "PUT",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+      );
+      if (!response.ok) throw new Error("Failed to update recording");
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["process-recordings", selectedResident?.id ?? null],
+      });
+    },
+  });
+
   const deleteRecordingMutation = useMutation({
     mutationFn: async (id: number) => {
       const response = await fetch(
@@ -214,7 +255,7 @@ function ProcessRecordingsPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedResident) return;
-    await createRecordingMutation.mutateAsync({
+    const payload = {
       resident_id: selectedResident.id,
       session_date: formData.sessionDate,
       social_worker: formData.socialWorker,
@@ -229,7 +270,17 @@ function ProcessRecordingsPage() {
       concerns_flagged: formData.concernsFlagged,
       referral_made: formData.referralMade,
       notes_restricted: formData.notesRestricted,
-    });
+    };
+
+    if (editingRecordingId !== null) {
+      await updateRecordingMutation.mutateAsync({
+        id: editingRecordingId,
+        payload,
+      });
+    } else {
+      await createRecordingMutation.mutateAsync(payload);
+    }
+
     setFormData(EMPTY_FORM);
     setShowForm(false);
     setEditingRecordingId(null);
