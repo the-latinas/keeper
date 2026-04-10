@@ -94,7 +94,7 @@ export default function DonationHistory({
 									{d.campaign || "—"}
 								</TableCell>
 								<TableCell className="font-body text-sm font-semibold text-foreground">
-									${(d.amount || 0).toLocaleString()}
+									₱{(d.amount || 0).toLocaleString()}
 								</TableCell>
 								<TableCell className="font-body text-sm text-muted-foreground">
 									{d.allocation || "—"}

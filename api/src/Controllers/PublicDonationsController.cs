@@ -100,10 +100,10 @@ public class PublicDonationsController : ControllerBase
             IsRecurring = false,
             CampaignName = "Website",
             ChannelSource = "Website",
-            CurrencyCode = "USD",
+            CurrencyCode = "PHP",
             Amount = amount,
             EstimatedValue = amount,
-            ImpactUnit = "dollars",
+            ImpactUnit = "pesos",
             Notes = "Online donation (landing page)",
         };
 

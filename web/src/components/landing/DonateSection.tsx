@@ -104,7 +104,7 @@ export default function DonateSection() {
 										: "border-border text-primary hover:border-yellow-500/50 hover:bg-yellow-500/5"
 								}`}
 							>
-								${amt}
+								₱{amt}
 							</button>
 						))}
 						<button
@@ -124,7 +124,7 @@ export default function DonateSection() {
 						<div className="mb-8 flex flex-col items-center gap-2">
 							<div className="relative w-48">
 								<span className="absolute left-4 top-1/2 -translate-y-1/2 font-body font-semibold text-muted-foreground">
-									$
+									₱
 								</span>
 								<input
 									type="number"
@@ -145,7 +145,7 @@ export default function DonateSection() {
 							</div>
 							{showCustomError && (
 								<p className="font-body text-xs text-red-500">
-									Please enter an amount greater than $0.
+									Please enter an amount greater than ₱0.
 								</p>
 							)}
 						</div>
@@ -198,7 +198,7 @@ export default function DonateSection() {
 							<p className="font-body text-sm text-muted-foreground mt-3">
 								You are about to donate{" "}
 								<span className="font-semibold text-yellow-600 text-base">
-									${formatAmount(resolvedAmount)}
+									₱{formatAmount(resolvedAmount)}
 								</span>
 								. Would you like to proceed?
 							</p>

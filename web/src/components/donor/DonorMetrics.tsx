@@ -21,7 +21,7 @@ const metricConfig: MetricConfig[] = [
 		key: "totalDonated",
 		label: "Total Donated",
 		icon: DollarSign,
-		format: (v) => `$${(v || 0).toLocaleString()}`,
+		format: (v) => `₱${(v || 0).toLocaleString()}`,
 		color: "bg-primary/10 text-primary",
 	},
 	{

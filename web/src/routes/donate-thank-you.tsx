@@ -46,7 +46,7 @@ function DonateThankYouPage() {
 						<p className="font-body text-base text-muted-foreground leading-relaxed mt-4">
 							Your generous donation of{" "}
 							<span className="font-semibold text-yellow-600 text-xl">
-								${formatAmount(amount)}
+								₱{formatAmount(amount)}
 							</span>{" "}
 							will make a real difference.
 						</p>
@@ -57,7 +57,7 @@ function DonateThankYouPage() {
 					)}
 
 					<p className="font-body text-sm text-muted-foreground leading-relaxed mt-4">
-						Every dollar helps provide shelter, food, counseling, and a fresh
+						Every peso helps provide shelter, food, counseling, and a fresh
 						start for survivors. You are part of something meaningful.
 					</p>
 
