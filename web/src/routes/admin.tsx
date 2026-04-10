@@ -47,14 +47,6 @@ function AdminDashboard() {
     queryFn: () => apiGetJson<Donation[]>("/api/admin-data/donations"),
   });
 
-  const { data: donationsForTrend = [], isLoading: donationsTrendLoading } =
-    useQuery<Donation[]>({
-      queryKey: ["donations", "dashboard", "last-25"],
-      staleTime: 60_000,
-      queryFn: () =>
-        apiGetJson<Donation[]>("/api/admin-data/donations?take=25"),
-    });
-
   const { data: safehouses = [], isLoading: safehousesLoading } = useQuery<
     Safehouse[]
   >({
@@ -70,7 +62,6 @@ function AdminDashboard() {
   const loading =
     residentsLoading ||
     donationsLoading ||
-    donationsTrendLoading ||
     safehousesLoading ||
     activitiesLoading;
 
