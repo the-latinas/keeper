@@ -403,7 +403,7 @@ function ProcessRecordingsPage() {
 										{selectedResident.name}
 									</h2>
 									<p className="font-body text-sm text-muted-foreground mt-0.5">
-										Case #{selectedResident.caseNumber} &mdash;{" "}
+										Resident #{selectedResident.caseNumber} &mdash;{" "}
 										{residentRecordings.length} session
 										{residentRecordings.length !== 1 ? "s" : ""} recorded
 									</p>

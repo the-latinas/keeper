@@ -1287,7 +1287,7 @@ function HomeVisitationsPage() {
                       {selectedResident.name}
                     </h2>
                     <p className="font-body text-sm text-muted-foreground mt-0.5">
-                      Case #{selectedResident.caseNumber}
+                      Resident #{selectedResident.caseNumber}
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-body text-muted-foreground shrink-0">
