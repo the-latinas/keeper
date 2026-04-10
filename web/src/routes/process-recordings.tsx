@@ -102,6 +102,7 @@ function ProcessRecordingsPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingRecordingId, setEditingRecordingId] = useState<number | null>(null);
   const [formData, setFormData] = useState(EMPTY_FORM);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
   const { data: user } = useQuery({
     queryKey: ["auth", "me"],
@@ -263,9 +264,8 @@ function ProcessRecordingsPage() {
   }
 
   async function handleDeleteRecording(recordingId: number) {
-    const confirmed = window.confirm("Delete this process recording?");
-    if (!confirmed) return;
     await deleteRecordingMutation.mutateAsync(recordingId);
+    setConfirmDeleteId(null);
     if (editingRecordingId === recordingId) {
       setEditingRecordingId(null);
       setShowForm(false);
@@ -771,7 +771,7 @@ function ProcessRecordingsPage() {
                                 <Button
                                   type="button"
                                   variant="outline"
-                                  onClick={() => void handleDeleteRecording(rec.id)}
+                                  onClick={() => setConfirmDeleteId(rec.id)}
                                   className="h-8 px-3 rounded-lg font-body text-xs text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
                                 >
                                   <Trash2 className="h-3.5 w-3.5 mr-1" />
@@ -819,6 +819,35 @@ function ProcessRecordingsPage() {
 					)}
 				</div>
 			</main>
+
+			{/* Delete confirmation modal */}
+			{confirmDeleteId !== null && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+					<div className="bg-background rounded-2xl shadow-xl border border-border w-full max-w-sm mx-4 p-6 space-y-4">
+						<h2 className="font-heading text-lg font-bold text-foreground">Delete Recording?</h2>
+						<p className="font-body text-sm text-muted-foreground">
+							This will permanently delete this process recording. This action cannot be undone.
+						</p>
+						<div className="flex justify-end gap-3 pt-2">
+							<Button
+								variant="outline"
+								className="font-body h-9 rounded-xl px-5"
+								onClick={() => setConfirmDeleteId(null)}
+								disabled={deleteRecordingMutation.isPending}
+							>
+								Cancel
+							</Button>
+							<Button
+								className="font-body h-9 rounded-xl px-5 bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+								onClick={() => void handleDeleteRecording(confirmDeleteId)}
+								disabled={deleteRecordingMutation.isPending}
+							>
+								{deleteRecordingMutation.isPending ? "Deleting..." : "Delete"}
+							</Button>
+						</div>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 }
