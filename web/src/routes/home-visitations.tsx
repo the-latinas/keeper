@@ -286,6 +286,7 @@ function HomeVisitationsPage() {
 
   const [conferences, setConferences] =
     useState<CaseConference[]>(MOCK_CONFERENCES);
+  const [confirmDeleteVisitId, setConfirmDeleteVisitId] = useState<number | null>(null);
 
   const { data: user } = useQuery({
     queryKey: ["auth", "me"],
@@ -491,8 +492,8 @@ function HomeVisitationsPage() {
   }
 
   async function handleDeleteVisit(id: number) {
-    if (!window.confirm("Delete this home visit record? This cannot be undone.")) return;
     await deleteVisitMutation.mutateAsync(id);
+    setConfirmDeleteVisitId(null);
   }
 
   async function handleVisitSubmit(e: React.FormEvent) {
@@ -897,7 +898,7 @@ function HomeVisitationsPage() {
                           <Pencil className="h-3.5 w-3.5" />
                         </button>
                         <button
-                          onClick={() => handleDeleteVisit(v.id)}
+                          onClick={() => setConfirmDeleteVisitId(v.id)}
                           disabled={deleteVisitMutation.isPending}
                           className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                           aria-label="Delete visit"
@@ -1379,6 +1380,35 @@ function HomeVisitationsPage() {
           )}
         </div>
       </main>
+
+      {/* Delete confirmation modal */}
+      {confirmDeleteVisitId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-background rounded-2xl shadow-xl border border-border w-full max-w-sm mx-4 p-6 space-y-4">
+            <h2 className="font-heading text-lg font-bold text-foreground">Delete Visit Record?</h2>
+            <p className="font-body text-sm text-muted-foreground">
+              This will permanently delete this home visit record. This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3 pt-2">
+              <Button
+                variant="outline"
+                className="font-body h-9 rounded-xl px-5"
+                onClick={() => setConfirmDeleteVisitId(null)}
+                disabled={deleteVisitMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="font-body h-9 rounded-xl px-5 bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                onClick={() => void handleDeleteVisit(confirmDeleteVisitId)}
+                disabled={deleteVisitMutation.isPending}
+              >
+                {deleteVisitMutation.isPending ? "Deleting..." : "Delete"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

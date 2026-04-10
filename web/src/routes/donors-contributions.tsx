@@ -283,6 +283,8 @@ function DonorsPage() {
   const [showContribForm, setShowContribForm] = useState(false);
   const [contribForm, setContribForm] = useState<Contribution>(EMPTY_CONTRIBUTION);
   const [editingContribId, setEditingContribId] = useState<string | null>(null);
+  const [showDeleteSupporterConfirm, setShowDeleteSupporterConfirm] = useState(false);
+  const [confirmDeleteContribId, setConfirmDeleteContribId] = useState<string | null>(null);
 
   const { data: user } = useQuery({
     queryKey: ["auth", "me"],
@@ -521,9 +523,8 @@ function DonorsPage() {
 
   async function handleSupporterDelete() {
     if (!panelSupporter) return;
-    const ok = window.confirm(`Delete supporter ${panelSupporter.is_anonymous ? "Anonymous Donor" : panelSupporter.name}?`);
-    if (!ok) return;
     await deleteSupporterMutation.mutateAsync(panelSupporter.id);
+    setShowDeleteSupporterConfirm(false);
     closePanel();
   }
 
@@ -548,8 +549,8 @@ function DonorsPage() {
   }
 
   async function handleDeleteContrib(id: string) {
-    if (!window.confirm("Delete this contribution? This cannot be undone.")) return;
     await deleteContribMutation.mutateAsync(id);
+    setConfirmDeleteContribId(null);
   }
 
   // ── Supporter view content ─────────────────────────────────────────────────
@@ -1098,7 +1099,7 @@ function DonorsPage() {
                         <button onClick={() => openEditContrib(c)} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" aria-label="Edit contribution">
                           <Pencil className="h-3.5 w-3.5" />
                         </button>
-                        <button onClick={() => handleDeleteContrib(c.id)} disabled={deleteContribMutation.isPending} className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors" aria-label="Delete contribution">
+                        <button onClick={() => setConfirmDeleteContribId(c.id)} disabled={deleteContribMutation.isPending} className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors" aria-label="Delete contribution">
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </div>
@@ -1142,7 +1143,7 @@ function DonorsPage() {
                                 <Pencil className="h-3.5 w-3.5" />
                               </button>
                               <button
-                                onClick={() => handleDeleteContrib(c.id)}
+                                onClick={() => setConfirmDeleteContribId(c.id)}
                                 disabled={deleteContribMutation.isPending}
                                 className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                                 aria-label="Delete contribution"
@@ -1200,11 +1201,11 @@ function DonorsPage() {
                 <>
                   <Button
                     variant="outline"
-                    onClick={handleSupporterDelete}
+                    onClick={() => setShowDeleteSupporterConfirm(true)}
                     className="font-body px-5 h-9 rounded-xl text-destructive border-destructive/30 hover:bg-destructive/10"
                     disabled={deleteSupporterMutation.isPending}
                   >
-                    {deleteSupporterMutation.isPending ? "Deleting..." : "Delete"}
+                    Delete
                   </Button>
                   <Button variant="outline" onClick={closePanel} className="font-body px-5 h-9 rounded-xl">Close</Button>
                   <Button onClick={() => openEdit(panelSupporter!)} className="font-body gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-5 h-9 rounded-xl">
@@ -1231,6 +1232,68 @@ function DonorsPage() {
             </div>
           </div>
         </>
+      )}
+
+      {/* Delete supporter confirmation modal */}
+      {showDeleteSupporterConfirm && panelSupporter && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-background rounded-2xl shadow-xl border border-border w-full max-w-sm mx-4 p-6 space-y-4">
+            <h2 className="font-heading text-lg font-bold text-foreground">Delete Supporter?</h2>
+            <p className="font-body text-sm text-muted-foreground">
+              This will permanently delete{" "}
+              <span className="font-semibold text-foreground">
+                {panelSupporter.is_anonymous ? "Anonymous Donor" : panelSupporter.name}
+              </span>
+              . This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3 pt-2">
+              <Button
+                variant="outline"
+                className="font-body h-9 rounded-xl px-5"
+                onClick={() => setShowDeleteSupporterConfirm(false)}
+                disabled={deleteSupporterMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="font-body h-9 rounded-xl px-5 bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                onClick={() => void handleSupporterDelete()}
+                disabled={deleteSupporterMutation.isPending}
+              >
+                {deleteSupporterMutation.isPending ? "Deleting..." : "Delete"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete contribution confirmation modal */}
+      {confirmDeleteContribId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-background rounded-2xl shadow-xl border border-border w-full max-w-sm mx-4 p-6 space-y-4">
+            <h2 className="font-heading text-lg font-bold text-foreground">Delete Contribution?</h2>
+            <p className="font-body text-sm text-muted-foreground">
+              This will permanently delete this contribution. This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3 pt-2">
+              <Button
+                variant="outline"
+                className="font-body h-9 rounded-xl px-5"
+                onClick={() => setConfirmDeleteContribId(null)}
+                disabled={deleteContribMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="font-body h-9 rounded-xl px-5 bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                onClick={() => void handleDeleteContrib(confirmDeleteContribId)}
+                disabled={deleteContribMutation.isPending}
+              >
+                {deleteContribMutation.isPending ? "Deleting..." : "Delete"}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

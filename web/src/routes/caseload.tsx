@@ -336,6 +336,7 @@ function CaseloadPage() {
   const [panelMode, setPanelMode] = useState<"view" | "edit" | "add" | null>(null);
   const [panelResident, setPanelResident] = useState<ResidentProfile | null>(null);
   const [formData, setFormData] = useState<ResidentProfile>(EMPTY_FORM);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const { data: user } = useQuery({
     queryKey: ["auth", "me"],
@@ -522,9 +523,8 @@ function CaseloadPage() {
 
   async function handleDelete() {
     if (!panelResident) return;
-    const ok = window.confirm(`Delete resident ${panelResident.full_name}? This cannot be undone.`);
-    if (!ok) return;
     await deleteMutation.mutateAsync(panelResident.id);
+    setShowDeleteConfirm(false);
     closePanel();
   }
 
@@ -1209,11 +1209,11 @@ function CaseloadPage() {
                 <>
                   <Button
                     variant="outline"
-                    onClick={handleDelete}
+                    onClick={() => setShowDeleteConfirm(true)}
                     className="font-body px-5 h-9 rounded-xl text-destructive border-destructive/30 hover:bg-destructive/10"
                     disabled={deleteMutation.isPending}
                   >
-                    {deleteMutation.isPending ? "Deleting..." : "Delete"}
+                    Delete
                   </Button>
                   <Button variant="outline" onClick={closePanel} className="font-body px-5 h-9 rounded-xl">
                     Close
@@ -1258,6 +1258,37 @@ function CaseloadPage() {
             </div>
           </div>
         </>
+      )}
+
+      {/* Delete confirmation modal */}
+      {showDeleteConfirm && panelResident && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-background rounded-2xl shadow-xl border border-border w-full max-w-sm mx-4 p-6 space-y-4">
+            <h2 className="font-heading text-lg font-bold text-foreground">Delete Resident?</h2>
+            <p className="font-body text-sm text-muted-foreground">
+              This will permanently delete{" "}
+              <span className="font-semibold text-foreground">{panelResident.full_name}</span>.
+              This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3 pt-2">
+              <Button
+                variant="outline"
+                className="font-body h-9 rounded-xl px-5"
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleteMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="font-body h-9 rounded-xl px-5 bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                onClick={handleDelete}
+                disabled={deleteMutation.isPending}
+              >
+                {deleteMutation.isPending ? "Deleting..." : "Delete"}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

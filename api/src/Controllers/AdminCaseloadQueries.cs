@@ -195,12 +195,6 @@ internal static class AdminCaseloadQueries
 
     private static string DisplayName(string? internalCode, string? caseControl, int residentId)
     {
-        var i = internalCode?.Trim();
-        if (!string.IsNullOrEmpty(i))
-        {
-            return i;
-        }
-
         var c = caseControl?.Trim();
         if (!string.IsNullOrEmpty(c))
         {
