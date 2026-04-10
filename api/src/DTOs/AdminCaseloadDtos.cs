@@ -11,6 +11,9 @@ public class AdminCaseloadResidentDto
     [JsonPropertyName("resident_code")]
     public string ResidentCode { get; set; } = string.Empty;
 
+    [JsonPropertyName("internal_code")]
+    public string InternalCode { get; set; } = string.Empty;
+
     [JsonPropertyName("full_name")]
     public string FullName { get; set; } = string.Empty;
 

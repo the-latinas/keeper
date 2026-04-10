@@ -108,6 +108,7 @@ internal static class AdminCaseloadQueries
         {
             Id = id,
             ResidentCode = code,
+            InternalCode = r.InternalCode?.Trim() ?? string.Empty,
             FullName = fullName,
             DateOfBirth = FormatDateOnly(r.DateOfBirth),
             Sex = r.Sex?.Trim() ?? string.Empty,

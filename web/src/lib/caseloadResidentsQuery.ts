@@ -7,6 +7,7 @@ import { apiGetJson } from "./api";
 export type CaseloadResidentApiRow = {
 	id: string;
 	resident_code?: string;
+	internal_code?: string;
 	full_name?: string;
 	date_of_birth?: string;
 	sex?: string;
@@ -56,6 +57,6 @@ export function mapCaseloadRowToPicker(
 	return {
 		id: Number.isFinite(id) ? id : 0,
 		name: r.full_name?.trim() || `Resident ${r.id}`,
-		caseNumber: r.resident_code?.trim() || `RES-${r.id}`,
+		caseNumber: r.internal_code?.trim() || `RES-${r.id}`,
 	};
 }
